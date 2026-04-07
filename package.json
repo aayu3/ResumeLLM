@@ -1,0 +1,18 @@
+{
+  "name": "resume-llm",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "inspect": "npx @modelcontextprotocol/inspector",
+    "smoke-test": "tsx --tsconfig packages/core/tsconfig.json scripts/smoke-test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@10.33.0"
+}
