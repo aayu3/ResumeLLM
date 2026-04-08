@@ -39,28 +39,30 @@ Required fields:
 - overallMatchScore: number  — integer 0–100 reflecting overall keyword and skills fit`,
 
     ollama: `\
-You are a resume coach. Compare the resume and job description below.
-Return ONLY a JSON object. Do not add any text before or after the JSON.
+You are an expert technical recruiter and resume coach. Perform a structured gap \
+analysis between the candidate's resume and the job description provided.
 
-{
-  "missingKeywords": [],
-  "missingSkills": [],
-  "toneIssues": [],
-  "strengthsFound": [],
-  "overallMatchScore": 0
-}`,
+Return ONLY a valid JSON object with no prose, explanation, or markdown fences.
+
+Required fields:
+- missingKeywords: string[]  — terms prominent in the JD that are absent from the resume
+- missingSkills: string[]    — required skills or technologies the candidate hasn't listed
+- toneIssues: string[]       — specific phrases with weak/passive language to improve
+- strengthsFound: string[]   — candidate strengths that directly match JD requirements
+- overallMatchScore: number  — integer 0–100 reflecting overall keyword and skills fit`,
 
     lmstudio: `\
-You are a resume coach. Compare the resume and job description below.
-Return ONLY a JSON object. Do not add any text before or after the JSON.
+You are an expert technical recruiter and resume coach. Perform a structured gap \
+analysis between the candidate's resume and the job description provided.
 
-{
-  "missingKeywords": [],
-  "missingSkills": [],
-  "toneIssues": [],
-  "strengthsFound": [],
-  "overallMatchScore": 0
-}`,
+Return ONLY a valid JSON object with no prose, explanation, or markdown fences.
+
+Required fields:
+- missingKeywords: string[]  — terms prominent in the JD that are absent from the resume
+- missingSkills: string[]    — required skills or technologies the candidate hasn't listed
+- toneIssues: string[]       — specific phrases with weak/passive language to improve
+- strengthsFound: string[]   — candidate strengths that directly match JD requirements
+- overallMatchScore: number  — integer 0–100 reflecting overall keyword and skills fit`,
 
     // Custom OpenAI-spec-compatible endpoints (vLLM, LiteLLM, Together AI, etc.)
     // Default to the standard OpenAI prompt; callers can pass systemPromptOverride
@@ -85,7 +87,6 @@ Schema:
   "optimizedMarkdown": string,
   "suggestions": [
     {
-      "id": string,
       "originalText": string,
       "suggestedText": string,
       "reason": string,
@@ -97,87 +98,100 @@ Schema:
     "missingSkills": string[],
     "toneIssues": string[],
     "strengthsFound": string[],
-    "overallMatchScore": number
+    "overallMatchScore": number (0-100)
   }
 }`,
 
     anthropic: `\
-You are an expert resume writer. Rewrite the provided resume so it passes ATS filters, \
-uses strong action verbs, and highlights relevant accomplishments.
+You are an expert resume writer. Given a resume in Markdown and a job description, \
+rewrite the resume so it passes ATS filters, uses strong action verbs, and highlights \
+relevant accomplishments without fabricating experience.
 
 Rules:
-- Never fabricate jobs, dates, credentials, or skills.
-- Quantify achievements wherever possible.
-- Mirror terminology from the job description for skills the candidate already has.
-- Return ONLY a valid JSON object with no prose or markdown fences.
+- Never invent jobs, dates, or credentials.
+- Prefer quantified achievements ("reduced build time by 40%") over vague claims.
+- Match terminology from the job description where the candidate already has the skill.
+- Output ONLY a valid JSON object — no markdown fences, no commentary.
 
-Required fields:
-- optimizedMarkdown: string — the full rewritten resume in Markdown
-- suggestions: array of { id, originalText, suggestedText, reason, section }
-  where section is one of: summary | experience | skills | education | projects | certifications | other
-- gapAnalysis: { missingKeywords, missingSkills, toneIssues, strengthsFound, overallMatchScore }`,
-
-    ollama: `\
-You are a resume writer. Rewrite the resume to better match the job description.
-Return ONLY a JSON object. No text before or after.
-
-Each item in "suggestions" MUST be an object with exactly these fields:
-  id (string), originalText (string), suggestedText (string), reason (string),
-  section (one of: "summary", "experience", "skills", "education", "projects", "certifications", "other")
-
-Example of a valid suggestion object:
+Schema:
 {
-  "id": "s1",
-  "originalText": "Worked on databases",
-  "suggestedText": "Designed and optimized SQL schemas reducing query latency by 30%",
-  "reason": "Quantifies impact and uses active language",
-  "section": "experience"
-}
-
-Return this exact structure (fill in real values):
-{
-  "optimizedMarkdown": "",
+  "optimizedMarkdown": string,
   "suggestions": [
-    { "id": "s1", "originalText": "", "suggestedText": "", "reason": "", "section": "experience" }
+    {
+      "originalText": string,
+      "suggestedText": string,
+      "reason": string,
+      "section": "summary" | "experience" | "skills" | "education" | "projects" | "certifications" | "other"
+    }
   ],
   "gapAnalysis": {
-    "missingKeywords": [],
-    "missingSkills": [],
-    "toneIssues": [],
-    "strengthsFound": [],
-    "overallMatchScore": 0
+    "missingKeywords": string[],
+    "missingSkills": string[],
+    "toneIssues": string[],
+    "strengthsFound": string[],
+    "overallMatchScore": number (0-100)
+  }
+}`,
+
+    ollama: `\
+You are an expert resume writer. Given a resume in Markdown and a job description, \
+rewrite the resume so it passes ATS filters, uses strong action verbs, and highlights \
+relevant accomplishments without fabricating experience.
+
+Rules:
+- Never invent jobs, dates, or credentials.
+- Prefer quantified achievements ("reduced build time by 40%") over vague claims.
+- Match terminology from the job description where the candidate already has the skill.
+- Output ONLY a valid JSON object — no markdown fences, no commentary.
+
+Schema:
+{
+  "optimizedMarkdown": string,
+  "suggestions": [
+    {
+      "originalText": string,
+      "suggestedText": string,
+      "reason": string,
+      "section": "summary" | "experience" | "skills" | "education" | "projects" | "certifications" | "other"
+    }
+  ],
+  "gapAnalysis": {
+    "missingKeywords": string[],
+    "missingSkills": string[],
+    "toneIssues": string[],
+    "strengthsFound": string[],
+    "overallMatchScore": number (0-100)
   }
 }`,
 
     lmstudio: `\
-You are a resume writer. Rewrite the resume to better match the job description.
-Return ONLY a JSON object. No text before or after.
+You are an expert resume writer. Given a resume in Markdown and a job description, \
+rewrite the resume so it passes ATS filters, uses strong action verbs, and highlights \
+relevant accomplishments without fabricating experience.
 
-Each item in "suggestions" MUST be an object with exactly these fields:
-  id (string), originalText (string), suggestedText (string), reason (string),
-  section (one of: "summary", "experience", "skills", "education", "projects", "certifications", "other")
+Rules:
+- Never invent jobs, dates, or credentials.
+- Prefer quantified achievements ("reduced build time by 40%") over vague claims.
+- Match terminology from the job description where the candidate already has the skill.
+- Output ONLY a valid JSON object — no markdown fences, no commentary.
 
-Example of a valid suggestion object:
+Schema:
 {
-  "id": "s1",
-  "originalText": "Worked on databases",
-  "suggestedText": "Designed and optimized SQL schemas reducing query latency by 30%",
-  "reason": "Quantifies impact and uses active language",
-  "section": "experience"
-}
-
-Return this exact structure (fill in real values):
-{
-  "optimizedMarkdown": "",
+  "optimizedMarkdown": string,
   "suggestions": [
-    { "id": "s1", "originalText": "", "suggestedText": "", "reason": "", "section": "experience" }
+    {
+      "originalText": string,
+      "suggestedText": string,
+      "reason": string,
+      "section": "summary" | "experience" | "skills" | "education" | "projects" | "certifications" | "other"
+    }
   ],
   "gapAnalysis": {
-    "missingKeywords": [],
-    "missingSkills": [],
-    "toneIssues": [],
-    "strengthsFound": [],
-    "overallMatchScore": 0
+    "missingKeywords": string[],
+    "missingSkills": string[],
+    "toneIssues": string[],
+    "strengthsFound": string[],
+    "overallMatchScore": number (0-100)
   }
 }`,
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { GapAnalysisResult, OptimizeResult, ProviderMeta } from "@resume-llm/core";
 import { DEFAULT_MODELS, DEFAULT_BASE_URLS } from "@resume-llm/core";
 import { analyzeGap, optimizeResume } from "./lib/api.ts";
+import { useLocalStorage } from "./hooks/useLocalStorage.ts";
 import { ResumeInput } from "./components/ResumeInput.tsx";
 import { JobInput } from "./components/JobInput.tsx";
 import { ProviderForm } from "./components/ProviderForm.tsx";
@@ -17,10 +18,33 @@ const DEFAULT_PROVIDER: ProviderMeta = {
 };
 
 export function App() {
-  const [resumeMarkdown, setResumeMarkdown] = useState("");
-  const [jobDescription, setJobDescription] = useState("");
-  const [provider, setProvider] = useState<ProviderMeta>(DEFAULT_PROVIDER);
-  const [apiKey, setApiKey] = useState("");
+  const [resumeMarkdown, setResumeMarkdown] = useLocalStorage("resumeMarkdown", "");
+  const [jobDescription, setJobDescription] = useLocalStorage("jobDescription", "");
+  const [provider, setProvider] = useLocalStorage<ProviderMeta>("provider", DEFAULT_PROVIDER);
+  const [rememberKey, setRememberKey] = useLocalStorage("rememberApiKey", false);
+  const [apiKey, setApiKey] = useLocalStorage("apiKey", "");
+
+  function handleApiKeyChange(key: string) {
+    if (rememberKey) {
+      setApiKey(key);
+    } else {
+      // Keep in state only — clear any previously stored value.
+      setApiKey("");
+      _setApiKeyTransient(key);
+    }
+  }
+
+  // Transient (session-only) fallback when rememberKey is off.
+  const [transientKey, _setApiKeyTransient] = useState(rememberKey ? "" : apiKey);
+  const effectiveApiKey = rememberKey ? apiKey : transientKey;
+
+  function handleRememberKeyChange(checked: boolean) {
+    setRememberKey(checked);
+    if (!checked) {
+      // Wipe the stored key immediately when the user opts out.
+      setApiKey("");
+    }
+  }
 
   const [gapResult, setGapResult] = useState<GapAnalysisResult | null>(null);
   const [optimizeResult, setOptimizeResult] = useState<OptimizeResult | null>(null);
@@ -34,7 +58,7 @@ export function App() {
     setError(null);
     setLoading("gap");
     try {
-      const result = await analyzeGap({ resumeMarkdown, jobDescription, provider }, apiKey || undefined);
+      const result = await analyzeGap({ resumeMarkdown, jobDescription, provider }, effectiveApiKey || undefined);
       setGapResult(result);
       setOptimizeResult(null);
     } catch (err) {
@@ -48,7 +72,7 @@ export function App() {
     setError(null);
     setLoading("optimize");
     try {
-      const result = await optimizeResume({ resumeMarkdown, jobDescription, provider }, apiKey || undefined);
+      const result = await optimizeResume({ resumeMarkdown, jobDescription, provider }, effectiveApiKey || undefined);
       setOptimizeResult(result);
       setGapResult(result.gapAnalysis);
     } catch (err) {
@@ -80,9 +104,11 @@ export function App() {
           />
           <ProviderForm
             provider={provider}
-            apiKey={apiKey}
+            apiKey={effectiveApiKey}
             onProviderChange={setProvider}
-            onApiKeyChange={setApiKey}
+            onApiKeyChange={handleApiKeyChange}
+            rememberApiKey={rememberKey}
+            onRememberApiKeyChange={handleRememberKeyChange}
             disabled={isBusy}
           />
 

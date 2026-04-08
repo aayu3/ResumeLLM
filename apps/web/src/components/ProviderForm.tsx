@@ -18,6 +18,8 @@ interface ProviderFormProps {
   apiKey: string;
   onProviderChange: (provider: ProviderMeta) => void;
   onApiKeyChange: (key: string) => void;
+  rememberApiKey?: boolean;
+  onRememberApiKeyChange?: (checked: boolean) => void;
   disabled?: boolean;
 }
 
@@ -26,6 +28,8 @@ export function ProviderForm({
   apiKey,
   onProviderChange,
   onApiKeyChange,
+  rememberApiKey = false,
+  onRememberApiKeyChange,
   disabled,
 }: ProviderFormProps) {
   function handleTypeChange(type: ProviderType) {
@@ -104,9 +108,19 @@ export function ProviderForm({
             disabled={disabled}
             autoComplete="off"
           />
-          <p className="text-xs text-gray-400">
-            Sent directly to the Provider — never stored.
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <input
+              id="remember-key"
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              checked={rememberApiKey}
+              onChange={(e) => onRememberApiKeyChange?.(e.target.checked)}
+              disabled={disabled}
+            />
+            <label htmlFor="remember-key" className="text-xs text-gray-400 select-none">
+              Remember API key in localStorage
+            </label>
+          </div>
         </div>
       )}
 

@@ -92,8 +92,8 @@ function normalizeOptimizePayload(parsed: unknown): unknown {
     }
     if (typeof s === "object" && s !== null) {
       const suggestion = s as Record<string, unknown>;
-      // Backfill fields the model omitted.
-      if (!suggestion.id) suggestion.id = `s${i + 1}`;
+      // Always inject a sequential id — the model is not asked to produce one.
+      suggestion.id = `s${i + 1}`;
       if (!suggestion.originalText) suggestion.originalText = "";
       if (!suggestion.reason) suggestion.reason = "";
       if (typeof suggestion.section === "string" && !VALID_SECTIONS.has(suggestion.section)) {
