@@ -1,4 +1,5 @@
 import type OpenAI from "openai";
+import { jsonrepair } from "jsonrepair";
 import {
   GapAnalysisRequestSchema,
   GapAnalysisResultSchema,
@@ -31,32 +32,48 @@ function supportsJsonResponseFormat(providerType: ProviderType): boolean {
 
 /**
  * Extract the first complete JSON object from a string.
- * Handles models that wrap their output in prose or markdown fences.
+ * Handles models that wrap their output in prose or markdown fences,
+ * and reasoning models that prefix output with thinking blocks.
  */
 function extractJson(raw: string): string {
-  // Fast path: the whole string is already JSON.
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("{")) return trimmed;
+  // Strip reasoning/thinking blocks emitted by models like QwQ and DeepSeek-R1.
+  // Formats seen in the wild:
+  //   <|channel>thought ... <channel|>   (LM Studio reasoning models)
+  //   <think> ... </think>               (DeepSeek-R1 and derivatives)
+  let cleaned = raw
+    .replace(/<\|channel>thought[\s\S]*?<channel\|>/gi, "")
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .trim();
+
+  // Fast path: already JSON.
+  if (cleaned.startsWith("{")) return cleaned;
 
   // Strip markdown fences.
-  const stripped = trimmed
+  const stripped = cleaned
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
   if (stripped.startsWith("{")) return stripped;
 
   // Scan for the first { ... } block in case the model added preamble.
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start !== -1 && end > start) return raw.slice(start, end + 1);
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start !== -1 && end > start) return cleaned.slice(start, end + 1);
 
-  return raw; // Let JSON.parse throw a meaningful error.
+  return cleaned; // Let JSON.parse throw a meaningful error.
 }
+
+const VALID_SECTIONS = new Set([
+  "summary", "experience", "skills", "education", "projects", "certifications", "other",
+]);
 
 /**
  * Some local models (e.g. Gemma) return suggestions as an array of strings
  * instead of the expected objects. Coerce string entries into the full shape
  * so Zod validation passes and callers always get a consistent structure.
+ *
+ * Also coerces any unrecognised section value to "other" as a safety net,
+ * in case the model invents a label not in the enum (e.g. "volunteer work").
  */
 function normalizeOptimizePayload(parsed: unknown): unknown {
   if (typeof parsed !== "object" || parsed === null) return parsed;
@@ -73,19 +90,34 @@ function normalizeOptimizePayload(parsed: unknown): unknown {
         section: "other",
       };
     }
+    if (typeof s === "object" && s !== null) {
+      const suggestion = s as Record<string, unknown>;
+      // Backfill fields the model omitted.
+      if (!suggestion.id) suggestion.id = `s${i + 1}`;
+      if (!suggestion.originalText) suggestion.originalText = "";
+      if (!suggestion.reason) suggestion.reason = "";
+      if (typeof suggestion.section === "string" && !VALID_SECTIONS.has(suggestion.section)) {
+        suggestion.section = "other";
+      }
+      if (!suggestion.section) suggestion.section = "other";
+    }
     return s;
   });
   return obj;
 }
 
-/** Parse and validate an LLM response string against a Zod schema. */
+/**
+ * Parse and validate an LLM response string against a Zod schema.
+ * Runs jsonrepair first to handle common local-model JSON issues
+ * (unescaped quotes, missing commas, trailing commas, etc.).
+ */
 function parseJsonResponse<T>(raw: string, schema: { parse: (v: unknown) => T }): T {
-  return schema.parse(JSON.parse(extractJson(raw)));
+  return schema.parse(JSON.parse(jsonrepair(extractJson(raw))));
 }
 
 /** Same as parseJsonResponse but runs normalizeOptimizePayload first. */
 function parseOptimizeResponse(raw: string): OptimizeResult {
-  const parsed = normalizeOptimizePayload(JSON.parse(extractJson(raw)));
+  const parsed = normalizeOptimizePayload(JSON.parse(jsonrepair(extractJson(raw))));
   return OptimizeResultSchema.parse(parsed);
 }
 

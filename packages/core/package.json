@@ -18,6 +18,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "jsonrepair": "^3.13.3",
     "openai": "^4.77.0",
     "zod": "^3.24.0"
   },

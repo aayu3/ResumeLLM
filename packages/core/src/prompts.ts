@@ -89,7 +89,7 @@ Schema:
       "originalText": string,
       "suggestedText": string,
       "reason": string,
-      "section": "summary" | "experience" | "skills" | "education" | "other"
+      "section": "summary" | "experience" | "skills" | "education" | "projects" | "certifications" | "other"
     }
   ],
   "gapAnalysis": {
@@ -114,7 +114,7 @@ Rules:
 Required fields:
 - optimizedMarkdown: string — the full rewritten resume in Markdown
 - suggestions: array of { id, originalText, suggestedText, reason, section }
-  where section is one of: summary | experience | skills | education | other
+  where section is one of: summary | experience | skills | education | projects | certifications | other
 - gapAnalysis: { missingKeywords, missingSkills, toneIssues, strengthsFound, overallMatchScore }`,
 
     ollama: `\
@@ -123,7 +123,7 @@ Return ONLY a JSON object. No text before or after.
 
 Each item in "suggestions" MUST be an object with exactly these fields:
   id (string), originalText (string), suggestedText (string), reason (string),
-  section (one of: "summary", "experience", "skills", "education", "other")
+  section (one of: "summary", "experience", "skills", "education", "projects", "certifications", "other")
 
 Example of a valid suggestion object:
 {
@@ -155,7 +155,7 @@ Return ONLY a JSON object. No text before or after.
 
 Each item in "suggestions" MUST be an object with exactly these fields:
   id (string), originalText (string), suggestedText (string), reason (string),
-  section (one of: "summary", "experience", "skills", "education", "other")
+  section (one of: "summary", "experience", "skills", "education", "projects", "certifications", "other")
 
 Example of a valid suggestion object:
 {

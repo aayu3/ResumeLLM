@@ -70,7 +70,7 @@ export const SuggestionSchema = z.object({
   originalText: z.string(),
   suggestedText: z.string(),
   reason: z.string(),
-  section: z.enum(["summary", "experience", "skills", "education", "other"]),
+  section: z.enum(["summary", "experience", "skills", "education", "projects", "certifications", "other"]),
 });
 export type Suggestion = z.infer<typeof SuggestionSchema>;
 

@@ -1,0 +1,118 @@
+import { DEFAULT_MODELS, DEFAULT_BASE_URLS } from "@resume-llm/core";
+import type { ProviderMeta, ProviderType } from "@resume-llm/core";
+
+const PROVIDER_OPTIONS: { value: ProviderType; label: string }[] = [
+  { value: "ollama", label: "Ollama (local)" },
+  { value: "lmstudio", label: "LM Studio (local)" },
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "custom", label: "Custom endpoint" },
+];
+
+const LOCAL_PROVIDERS: ProviderType[] = ["ollama", "lmstudio"];
+const NEEDS_KEY: ProviderType[] = ["openai", "anthropic", "custom"];
+const NEEDS_BASE_URL: ProviderType[] = ["ollama", "lmstudio", "custom"];
+
+interface ProviderFormProps {
+  provider: ProviderMeta;
+  apiKey: string;
+  onProviderChange: (provider: ProviderMeta) => void;
+  onApiKeyChange: (key: string) => void;
+  disabled?: boolean;
+}
+
+export function ProviderForm({
+  provider,
+  apiKey,
+  onProviderChange,
+  onApiKeyChange,
+  disabled,
+}: ProviderFormProps) {
+  function handleTypeChange(type: ProviderType) {
+    onProviderChange({
+      type,
+      model: DEFAULT_MODELS[type] ?? "",
+      baseURL: DEFAULT_BASE_URLS[type],
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Provider</p>
+
+      {/* Provider type */}
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Model provider</label>
+        <select
+          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md bg-white
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          value={provider.type}
+          onChange={(e) => handleTypeChange(e.target.value as ProviderType)}
+          disabled={disabled}
+        >
+          {PROVIDER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Model name */}
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Model</label>
+        <input
+          type="text"
+          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          value={provider.model}
+          onChange={(e) => onProviderChange({ ...provider, model: e.target.value })}
+          placeholder={DEFAULT_MODELS[provider.type] ?? "model-name"}
+          disabled={disabled}
+        />
+      </div>
+
+      {/* Base URL (local/custom providers) */}
+      {NEEDS_BASE_URL.includes(provider.type) && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">Base URL</label>
+          <input
+            type="url"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            value={provider.baseURL ?? ""}
+            onChange={(e) =>
+              onProviderChange({ ...provider, baseURL: e.target.value || undefined })
+            }
+            placeholder={DEFAULT_BASE_URLS[provider.type] ?? "http://localhost:PORT/v1"}
+            disabled={disabled}
+          />
+        </div>
+      )}
+
+      {/* API key (cloud/custom providers) */}
+      {NEEDS_KEY.includes(provider.type) && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-gray-700">API key</label>
+          <input
+            type="password"
+            className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            value={apiKey}
+            onChange={(e) => onApiKeyChange(e.target.value)}
+            placeholder="sk-..."
+            disabled={disabled}
+            autoComplete="off"
+          />
+          <p className="text-xs text-gray-400">
+            Sent directly to the Provider — never stored.
+          </p>
+        </div>
+      )}
+
+      {LOCAL_PROVIDERS.includes(provider.type) && (
+        <p className="text-xs text-gray-400">No API key required for local providers.</p>
+      )}
+    </div>
+  );
+}
