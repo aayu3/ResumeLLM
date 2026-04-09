@@ -21,31 +21,40 @@ export function App() {
   const [resumeMarkdown, setResumeMarkdown] = useLocalStorage("resumeMarkdown", "");
   const [jobDescription, setJobDescription] = useLocalStorage("jobDescription", "");
   const [provider, setProvider] = useLocalStorage<ProviderMeta>("provider", DEFAULT_PROVIDER);
-  const [rememberKey, setRememberKey] = useLocalStorage("rememberApiKey", false);
-  const [apiKey, setApiKey] = useLocalStorage("apiKey", "");
+  // Keys saved to localStorage, keyed by provider type.
+  // Presence of an entry means "remember this key" — no separate boolean needed.
+  const [persistedKeys, setPersistedKeys] = useLocalStorage<Record<string, string>>("apiKeys", {});
+  // Session-only keys for providers where the user hasn't opted in to persistence.
+  const [transientKeys, setTransientKeys] = useState<Record<string, string>>({});
+
+  // Derived synchronously — no useEffect, no double-render, no canceled fetches.
+  const rememberKey = provider.type in persistedKeys;
+  const apiKey = persistedKeys[provider.type] ?? transientKeys[provider.type] ?? "";
 
   function handleApiKeyChange(key: string) {
     if (rememberKey) {
-      setApiKey(key);
+      setPersistedKeys({ ...persistedKeys, [provider.type]: key });
     } else {
-      // Keep in state only — clear any previously stored value.
-      setApiKey("");
-      _setApiKeyTransient(key);
+      setTransientKeys({ ...transientKeys, [provider.type]: key });
     }
   }
-
-  // Transient (session-only) fallback when rememberKey is off.
-  const [transientKey, _setApiKeyTransient] = useState(rememberKey ? "" : apiKey);
-  const effectiveApiKey = rememberKey ? apiKey : transientKey;
 
   function handleRememberKeyChange(checked: boolean) {
-    setRememberKey(checked);
-    if (!checked) {
-      // Wipe the stored key immediately when the user opts out.
-      setApiKey("");
+    if (checked) {
+      // Move current key into persisted store.
+      setPersistedKeys({ ...persistedKeys, [provider.type]: apiKey });
+      const { [provider.type]: _, ...rest } = transientKeys;
+      setTransientKeys(rest);
+    } else {
+      // Remove this provider's key from persisted store; keep it in transient so
+      // the input doesn't clear mid-session.
+      const { [provider.type]: _, ...rest } = persistedKeys;
+      setPersistedKeys(rest);
+      setTransientKeys({ ...transientKeys, [provider.type]: apiKey });
     }
   }
 
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [gapResult, setGapResult] = useState<GapAnalysisResult | null>(null);
   const [optimizeResult, setOptimizeResult] = useState<OptimizeResult | null>(null);
   const [loading, setLoading] = useState<LoadingState>(null);
@@ -58,7 +67,7 @@ export function App() {
     setError(null);
     setLoading("gap");
     try {
-      const result = await analyzeGap({ resumeMarkdown, jobDescription, provider }, effectiveApiKey || undefined);
+      const result = await analyzeGap({ resumeMarkdown, jobDescription, provider }, apiKey || undefined);
       setGapResult(result);
       setOptimizeResult(null);
     } catch (err) {
@@ -72,7 +81,7 @@ export function App() {
     setError(null);
     setLoading("optimize");
     try {
-      const result = await optimizeResume({ resumeMarkdown, jobDescription, provider }, effectiveApiKey || undefined);
+      const result = await optimizeResume({ resumeMarkdown, jobDescription, provider }, apiKey || undefined);
       setOptimizeResult(result);
       setGapResult(result.gapAnalysis);
     } catch (err) {
@@ -95,6 +104,7 @@ export function App() {
           <ResumeInput
             value={resumeMarkdown}
             onChange={setResumeMarkdown}
+            onFile={setOriginalFile}
             disabled={isBusy}
           />
           <JobInput
@@ -104,7 +114,7 @@ export function App() {
           />
           <ProviderForm
             provider={provider}
-            apiKey={effectiveApiKey}
+            apiKey={apiKey}
             onProviderChange={setProvider}
             onApiKeyChange={handleApiKeyChange}
             rememberApiKey={rememberKey}
@@ -151,7 +161,7 @@ export function App() {
           )}
 
           {!isBusy && optimizeResult && (
-            <OptimizePanel result={optimizeResult} />
+            <OptimizePanel result={optimizeResult} resumeMarkdown={resumeMarkdown} originalFile={originalFile} />
           )}
 
           {!isBusy && !optimizeResult && gapResult && (

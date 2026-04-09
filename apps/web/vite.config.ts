@@ -12,4 +12,24 @@ export default defineConfig({
       "/mcp": "http://localhost:8787",
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React + TipTap core — changes rarely, long cache lifetime.
+          "vendor-react": ["react", "react-dom"],
+          "vendor-tiptap": [
+            "@tiptap/react",
+            "@tiptap/core",
+            "@tiptap/starter-kit",
+            "tiptap-markdown",
+          ],
+          // Heavy lazy-loaded libs — only fetched on first use.
+          "vendor-pdf": ["pdfjs-dist"],
+          "vendor-docx": ["docx"],
+          "vendor-mammoth": ["mammoth"],
+        },
+      },
+    },
+  },
 });

@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { DEFAULT_MODELS, DEFAULT_BASE_URLS } from "@resume-llm/core";
 import type { ProviderMeta, ProviderType } from "@resume-llm/core";
+import { useModels } from "../hooks/useModels.ts";
 
 const PROVIDER_OPTIONS: { value: ProviderType; label: string }[] = [
   { value: "ollama", label: "Ollama (local)" },
@@ -32,6 +34,16 @@ export function ProviderForm({
   onRememberApiKeyChange,
   disabled,
 }: ProviderFormProps) {
+  const { models, loading: modelsLoading } = useModels(provider.type, provider.baseURL, apiKey);
+
+  // When the model list loads and the current model isn't in it, select the first available.
+  useEffect(() => {
+    if (models.length > 0 && !models.includes(provider.model)) {
+      onProviderChange({ ...provider, model: models[0] });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [models]);
+
   function handleTypeChange(type: ProviderType) {
     onProviderChange({
       type,
@@ -39,6 +51,10 @@ export function ProviderForm({
       baseURL: DEFAULT_BASE_URLS[type],
     });
   }
+
+  const inputClass =
+    "w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md " +
+    "focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100";
 
   return (
     <div className="flex flex-col gap-3 p-3 bg-gray-50 rounded-md border border-gray-200">
@@ -48,8 +64,7 @@ export function ProviderForm({
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-gray-700">Model provider</label>
         <select
-          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md bg-white
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+          className={inputClass + " bg-white"}
           value={provider.type}
           onChange={(e) => handleTypeChange(e.target.value as ProviderType)}
           disabled={disabled}
@@ -62,28 +77,13 @@ export function ProviderForm({
         </select>
       </div>
 
-      {/* Model name */}
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-gray-700">Model</label>
-        <input
-          type="text"
-          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-          value={provider.model}
-          onChange={(e) => onProviderChange({ ...provider, model: e.target.value })}
-          placeholder={DEFAULT_MODELS[provider.type] ?? "model-name"}
-          disabled={disabled}
-        />
-      </div>
-
       {/* Base URL (local/custom providers) */}
       {NEEDS_BASE_URL.includes(provider.type) && (
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">Base URL</label>
           <input
             type="url"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            className={inputClass}
             value={provider.baseURL ?? ""}
             onChange={(e) =>
               onProviderChange({ ...provider, baseURL: e.target.value || undefined })
@@ -99,9 +99,8 @@ export function ProviderForm({
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">API key</label>
           <input
-            type="password"
-            className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            type="text"
+            className={inputClass}
             value={apiKey}
             onChange={(e) => onApiKeyChange(e.target.value)}
             placeholder="sk-..."
@@ -127,6 +126,36 @@ export function ProviderForm({
       {LOCAL_PROVIDERS.includes(provider.type) && (
         <p className="text-xs text-gray-400">No API key required for local providers.</p>
       )}
+
+      {/* Model — dropdown when list is available, text input otherwise */}
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium text-gray-700">Model</label>
+        {modelsLoading ? (
+          <input className={inputClass} disabled placeholder="Loading models…" />
+        ) : models.length > 0 ? (
+          <select
+            className={inputClass + " bg-white"}
+            value={provider.model}
+            onChange={(e) => onProviderChange({ ...provider, model: e.target.value })}
+            disabled={disabled}
+          >
+            {models.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            className={inputClass}
+            value={provider.model}
+            onChange={(e) => onProviderChange({ ...provider, model: e.target.value })}
+            placeholder={DEFAULT_MODELS[provider.type] ?? "model-name"}
+            disabled={disabled}
+          />
+        )}
+      </div>
     </div>
   );
 }

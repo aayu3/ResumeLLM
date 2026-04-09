@@ -1,1 +1,39 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* ── Suggestion mark styles ──────────────────────────────────────────────── */
+span[data-suggestion-id] {
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+span[data-status="pending"] {
+  background-color: rgb(254 249 195);   /* yellow-100 */
+  color: rgb(113 63 18);               /* yellow-900 */
+}
+span[data-status="pending"]:hover {
+  background-color: rgb(254 240 138);  /* yellow-200 */
+}
+
+span[data-status="accepted"] {
+  background-color: rgb(220 252 231);  /* green-100 */
+  color: rgb(20 83 45);               /* green-900 */
+}
+span[data-status="accepted"]:hover {
+  background-color: rgb(187 247 208);  /* green-200 */
+}
+
+span[data-status="rejected"] {
+  background-color: rgb(254 226 226);  /* red-100 */
+  color: rgb(239 68 68);              /* red-500 */
+  text-decoration: line-through;
+}
+span[data-status="rejected"]:hover {
+  background-color: rgb(254 202 202); /* red-200 */
+}
+
+span[data-suggestion-id][data-hovered] {
+  outline: 2px solid rgb(96 165 250); /* blue-400 */
+  outline-offset: 1px;
+}

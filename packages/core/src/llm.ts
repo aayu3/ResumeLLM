@@ -3,6 +3,7 @@ import { jsonrepair } from "jsonrepair";
 import {
   GapAnalysisRequestSchema,
   GapAnalysisResultSchema,
+  LLMOptimizeResponseSchema,
   OptimizeRequestSchema,
   OptimizeResultSchema,
   type GapAnalysisRequest,
@@ -115,11 +116,12 @@ function parseJsonResponse<T>(raw: string, schema: { parse: (v: unknown) => T })
   return schema.parse(JSON.parse(jsonrepair(extractJson(raw))));
 }
 
-/** Same as parseJsonResponse but runs normalizeOptimizePayload first. */
-function parseOptimizeResponse(raw: string): OptimizeResult {
+/** Parses the LLM optimize response (no optimizedMarkdown) after normalization. */
+function parseLLMOptimizeResponse(raw: string) {
   const parsed = normalizeOptimizePayload(JSON.parse(jsonrepair(extractJson(raw))));
-  return OptimizeResultSchema.parse(parsed);
+  return LLMOptimizeResponseSchema.parse(parsed);
 }
+
 
 // ── Core functions ────────────────────────────────────────────────────────────
 // Each function accepts a validated request object and a pre-built OpenAI-
@@ -181,5 +183,6 @@ export async function optimizeResume(
   });
 
   const raw = response.choices[0]?.message?.content ?? "";
-  return parseOptimizeResponse(raw);
+  const { suggestions, gapAnalysis } = parseLLMOptimizeResponse(raw);
+  return OptimizeResultSchema.parse({ suggestions, gapAnalysis });
 }

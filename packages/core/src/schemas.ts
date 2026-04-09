@@ -74,8 +74,17 @@ export const SuggestionSchema = z.object({
 });
 export type Suggestion = z.infer<typeof SuggestionSchema>;
 
+/**
+ * What the LLM is asked to return — no optimizedMarkdown.
+ * We compute that ourselves by applying suggestions to the original.
+ */
+export const LLMOptimizeResponseSchema = z.object({
+  suggestions: z.array(SuggestionSchema),
+  gapAnalysis: GapAnalysisResultSchema,
+});
+export type LLMOptimizeResponse = z.infer<typeof LLMOptimizeResponseSchema>;
+
 export const OptimizeResultSchema = z.object({
-  optimizedMarkdown: z.string(),
   suggestions: z.array(SuggestionSchema),
   gapAnalysis: GapAnalysisResultSchema,
 });
