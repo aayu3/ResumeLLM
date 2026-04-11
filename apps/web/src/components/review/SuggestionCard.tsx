@@ -1,4 +1,5 @@
 import type { SuggestionSegment } from "./types.ts";
+import { diffWords } from "./diffWords.ts";
 
 const SECTION_COLORS: Record<SuggestionSegment["section"], string> = {
   summary: "bg-purple-50 text-purple-700 border-purple-200",
@@ -87,9 +88,25 @@ export function SuggestionCard({
         )}
       </div>
 
-      {/* Original text */}
+      {/* Inline word-level diff: removed words in red, added words in green */}
       {original && (
-        <p className="text-sm text-gray-400 line-through leading-relaxed">{original}</p>
+        <p className="text-sm leading-relaxed">
+          {diffWords(original, edited).map((tok, i) => {
+            if (tok.type === "removed")
+              return (
+                <span key={i} className="line-through text-red-500 bg-red-50">
+                  {tok.text}
+                </span>
+              );
+            if (tok.type === "added")
+              return (
+                <span key={i} className="text-green-700 bg-green-50">
+                  {tok.text}
+                </span>
+              );
+            return <span key={i} className="text-gray-500">{tok.text}</span>;
+          })}
+        </p>
       )}
 
       {/* Editable suggestion */}

@@ -6,21 +6,44 @@ import Underline from "@tiptap/extension-underline";
 import { Markdown } from "tiptap-markdown";
 import type { Segment } from "./types.ts";
 import { SuggestionMark } from "./SuggestionMark.ts";
+import { DiffRemovedMark, DiffAddedMark } from "./DiffMarks.ts";
+import { diffWords } from "./diffWords.ts";
 import { EditorToolbar } from "../EditorToolbar.tsx";
 
+function escHtml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 /**
- * Converts the segment array into a markdown+HTML string for TipTap.
- * Text segments pass through as raw markdown; suggestion segments become
- * <span data-suggestion-id="…"> elements that SuggestionMark parses.
+ * Converts the segment array into HTML for TipTap.
+ * - Text segments pass through as raw markdown (tiptap-markdown parses it).
+ * - Pending suggestion segments render word-level diff: removed words get
+ *   <span class="diff-removed">, added words get <span class="diff-added">.
+ * - Accepted / rejected segments show their resolved text with no diff markup.
  */
 function segmentsToContent(segments: Segment[]): string {
   return segments
     .map((seg) => {
       if (seg.type === "text") return seg.content;
       if (seg.orphaned) return "";
+
+      if (seg.status === "pending") {
+        const tokens = diffWords(seg.original, seg.edited);
+        const inner = tokens
+          .map((tok) => {
+            const safe = escHtml(tok.text);
+            if (tok.type === "removed")
+              return `<span class="diff-removed">${safe}</span>`;
+            if (tok.type === "added")
+              return `<span class="diff-added">${safe}</span>`;
+            return safe;
+          })
+          .join("");
+        return `<span data-suggestion-id="${seg.id}" data-status="pending">${inner}</span>`;
+      }
+
       const text = seg.status === "rejected" ? seg.original : seg.edited;
-      const safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      return `<span data-suggestion-id="${seg.id}" data-status="${seg.status}">${safe}</span>`;
+      return `<span data-suggestion-id="${seg.id}" data-status="${seg.status}">${escHtml(text)}</span>`;
     })
     .join("");
 }
@@ -50,6 +73,8 @@ export function ResumeDocument({
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Markdown.configure({ html: true, transformPastedText: false, transformCopiedText: false }),
       SuggestionMark,
+      DiffRemovedMark,
+      DiffAddedMark,
     ],
     content: segmentsToContent(segments),
     editable: true,

@@ -37,3 +37,15 @@ span[data-suggestion-id][data-hovered] {
   outline: 2px solid rgb(96 165 250); /* blue-400 */
   outline-offset: 1px;
 }
+
+/* ── Inline word-level diff marks ────────────────────────────────────────── */
+span.diff-removed {
+  text-decoration: line-through;
+  color: rgb(220 38 38);          /* red-600 */
+  background-color: rgb(254 226 226); /* red-100 */
+}
+
+span.diff-added {
+  color: rgb(21 128 61);          /* green-700 */
+  background-color: rgb(220 252 231); /* green-100 */
+}
