@@ -2,6 +2,8 @@ export type ParseWarning = "pdf-may-lose-formatting" | "pdf-no-text-detected";
 
 export interface ParseResult {
   markdown: string;
+  /** Rendered HTML for loading directly into TipTap. Only present for DOCX. */
+  html?: string;
   warnings: ParseWarning[];
 }
 
@@ -19,7 +21,8 @@ export async function parseDocx(file: File): Promise<ParseResult> {
   const td = new TurndownService.default({ headingStyle: "atx", bulletListMarker: "-" });
   const markdown = td.turndown(html);
 
-  return { markdown, warnings: [] };
+  // Return both: html for TipTap display, markdown for the LLM.
+  return { markdown, html, warnings: [] };
 }
 
 // ── PDF ──────────────────────────────────────────────────────────────────────

@@ -25,6 +25,8 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
 
   // Refs for each suggestion card so we can scroll to them.
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Set by ResumeDocument once the editor is ready.
+  const editorRef = useRef<{ getMarkdown: () => string; getHTML: () => string } | null>(null);
 
   // Re-build segments if result changes (new optimization run).
   useEffect(() => {
@@ -82,27 +84,26 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
   const accepted = suggestionSegments.filter((s) => s.status === "accepted").length;
   const rejected = suggestionSegments.filter((s) => s.status === "rejected").length;
 
-  const finalMarkdown = useMemo(() => segmentsToMarkdown(segments), [segments]);
+  const getFinalMarkdown = () => editorRef.current?.getMarkdown() ?? segmentsToMarkdown(segments);
+  const getFinalHtml = () => editorRef.current?.getHTML() ?? "";
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(finalMarkdown);
+    await navigator.clipboard.writeText(getFinalMarkdown());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
   async function handleDownload(format: "pdf" | "docx") {
     setDownloading(format);
+    const markdown = getFinalMarkdown();
     try {
       if (format === "pdf") {
-        await downloadAsPdf(finalMarkdown);
+        downloadAsPdf(getFinalHtml());
       } else {
-        // Build exact replacement pairs from accepted (non-rejected) segments.
-        // seg.original is the text that exists verbatim in the uploaded DOCX;
-        // seg.edited is what the user wants it to become.
         const replacements = suggestionSegments
           .filter((s) => s.status === "accepted" && !s.orphaned && s.original)
           .map((s) => ({ original: s.original, replacement: s.edited }));
-        await downloadAsDocx(finalMarkdown, originalFile ?? undefined, replacements);
+        await downloadAsDocx(markdown, originalFile ?? undefined, replacements);
       }
     } finally {
       setDownloading(null);
@@ -171,6 +172,7 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
             <ResumeDocument
               segments={segments}
               hoveredId={hoveredId}
+              editorRef={editorRef}
               onSegmentClick={handleSegmentClick}
               onSegmentHover={setHoveredId}
             />

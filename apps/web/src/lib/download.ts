@@ -17,12 +17,12 @@ function triggerDownload(blob: Blob, filename: string) {
 
 /**
  * Opens the resume in a new print-ready window and triggers the browser
- * print dialog (Save as PDF). No extra dependencies.
+ * print dialog (Save as PDF).
+ *
+ * Accepts editor.getHTML() from TipTap — already proper HTML with no
+ * markdown symbols. Suggestion highlight spans are stripped by CSS.
  */
-export async function downloadAsPdf(markdown: string) {
-  const { marked } = await import("marked");
-  const html = await marked(markdown);
-
+export function downloadAsPdf(editorHtml: string) {
   const printHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -49,9 +49,16 @@ export async function downloadAsPdf(markdown: string) {
       body { padding: 0; }
       @page { margin: 1.5cm 1.8cm; }
     }
+    /* Strip suggestion highlight colours for print. */
+    span[data-suggestion-id] {
+      background: none !important;
+      color: inherit !important;
+      text-decoration: none !important;
+      outline: none !important;
+    }
   </style>
 </head>
-<body>${html}</body>
+<body>${editorHtml}</body>
 </html>`;
 
   const win = window.open("", "_blank");

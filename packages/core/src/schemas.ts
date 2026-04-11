@@ -52,7 +52,7 @@ export const GapAnalysisResultSchema = z.object({
   missingSkills: z.array(z.string()),
   toneIssues: z.array(z.string()),
   strengthsFound: z.array(z.string()),
-  overallMatchScore: z.number().int().min(0).max(100),
+  overallMatchScore: z.number().min(0).max(100).transform(Math.round),
 });
 export type GapAnalysisResult = z.infer<typeof GapAnalysisResultSchema>;
 

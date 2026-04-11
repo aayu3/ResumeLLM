@@ -1,5 +1,11 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
+import Underline from "@tiptap/extension-underline";
+import { Markdown } from "tiptap-markdown";
 import { parseFile, type ParseWarning } from "../lib/parseFile.ts";
+import { EditorToolbar } from "./EditorToolbar.tsx";
 
 interface ResumeInputProps {
   value: string;
@@ -11,34 +17,75 @@ interface ResumeInputProps {
 
 const WARNING_MESSAGES: Record<ParseWarning, string> = {
   "pdf-may-lose-formatting":
-    "PDF formatting is approximate. Review the extracted text before submitting. For best results, use .docx or paste Markdown directly.",
+    "PDF formatting is approximate. Review the extracted text before submitting. For best results, use .docx.",
   "pdf-no-text-detected":
     "No text could be extracted from this PDF — it may be a scanned image. Try exporting from Word or Google Docs instead.",
 };
 
 export function ResumeInput({ value, onChange, onFile, disabled }: ResumeInputProps) {
-  const [tab, setTab] = useState<"paste" | "upload">("paste");
+  const [showUpload, setShowUpload] = useState(false);
   const [warnings, setWarnings] = useState<ParseWarning[]>([]);
   const [parsing, setParsing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Track whether we've set content externally so we don't fight the editor.
+  const suppressOnChange = useRef(false);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      Markdown.configure({ html: true, transformPastedText: true, transformCopiedText: false }),
+    ],
+    content: value || "",
+    editable: !disabled,
+    editorProps: {
+      attributes: {
+        class: "prose prose-sm max-w-none focus:outline-none px-3 py-2 min-h-[200px]",
+      },
+    },
+    onUpdate: ({ editor }) => {
+      if (suppressOnChange.current) return;
+      const md = (editor.storage as unknown as { markdown: { getMarkdown(): string } }).markdown.getMarkdown();
+      onChange(md);
+    },
+  });
+
+  // Keep editor editable state in sync with the disabled prop.
+  useEffect(() => {
+    editor?.setEditable(!disabled);
+  }, [editor, disabled]);
+
+  const setEditorContent = useCallback((html: string | undefined, markdown: string) => {
+    if (!editor) return;
+    suppressOnChange.current = true;
+    if (html) {
+      editor.commands.setContent(html);
+    } else {
+      // Fall back to markdown — tiptap-markdown parses it.
+      editor.commands.setContent(markdown);
+    }
+    suppressOnChange.current = false;
+  }, [editor]);
 
   const handleFile = useCallback(async (file: File) => {
     setParsing(true);
     setWarnings([]);
     try {
       const result = await parseFile(file);
+      setEditorContent(result.html, result.markdown);
       onChange(result.markdown);
       onFile?.(file);
       setWarnings(result.warnings);
-      setTab("paste"); // Switch to paste tab so the user can review extracted text.
+      setShowUpload(false);
     } catch (err) {
-      setWarnings([]);
       alert((err as Error).message);
     } finally {
       setParsing(false);
     }
-  }, [onChange]);
+  }, [editor, onChange, onFile, setEditorContent]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -50,30 +97,22 @@ export function ResumeInput({ value, onChange, onFile, disabled }: ResumeInputPr
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
-    e.target.value = ""; // Allow re-selecting the same file.
+    e.target.value = "";
   }, [handleFile]);
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* Header + tab toggle */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-gray-700">Resume</label>
-        <div className="flex text-xs rounded-md overflow-hidden border border-gray-300">
-          {(["paste", "upload"] as const).map((t) => (
-            <button
-              key={t}
-              className={`px-3 py-1 capitalize transition-colors ${
-                tab === t
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-              onClick={() => setTab(t)}
-              disabled={disabled || parsing}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <button
+          className="text-xs px-2.5 py-1 rounded border border-gray-300 text-gray-600
+                     hover:bg-gray-50 transition-colors disabled:opacity-50"
+          onClick={() => setShowUpload((v) => !v)}
+          disabled={disabled || parsing}
+        >
+          {parsing ? "Parsing…" : "Upload file"}
+        </button>
       </div>
 
       {/* Warnings */}
@@ -83,20 +122,10 @@ export function ResumeInput({ value, onChange, onFile, disabled }: ResumeInputPr
         </div>
       ))}
 
-      {tab === "paste" ? (
-        <textarea
-          className="w-full h-64 px-3 py-2 text-sm font-mono border border-gray-300 rounded-md resize-y
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                     disabled:bg-gray-50 disabled:text-gray-400 placeholder:text-gray-400"
-          placeholder={"# Jane Smith\n\n## Experience\n### Engineer — Acme Corp (2021–2024)\n- ..."}
-          value={value}
-          onChange={(e) => { onChange(e.target.value); onFile?.(null); }}
-          disabled={disabled}
-          spellCheck={false}
-        />
-      ) : (
+      {/* Upload drop zone (shown on demand) */}
+      {showUpload && (
         <div
-          className={`flex flex-col items-center justify-center gap-3 h-64 border-2 border-dashed rounded-md
+          className={`flex flex-col items-center justify-center gap-3 h-32 border-2 border-dashed rounded-md
                       transition-colors cursor-pointer
                       ${dragOver ? "border-blue-400 bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}
                       ${disabled || parsing ? "opacity-50 pointer-events-none" : ""}`}
@@ -105,25 +134,18 @@ export function ResumeInput({ value, onChange, onFile, disabled }: ResumeInputPr
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".docx,.pdf"
-            className="hidden"
-            onChange={handleInputChange}
-          />
-          {parsing ? (
-            <p className="text-sm text-gray-500">Parsing file…</p>
-          ) : (
-            <>
-              <p className="text-sm text-gray-600 font-medium">
-                Drop a file here or click to browse
-              </p>
-              <p className="text-xs text-gray-400">.docx or .pdf</p>
-            </>
-          )}
+          <input ref={fileInputRef} type="file" accept=".docx,.pdf" className="hidden" onChange={handleInputChange} />
+          <p className="text-sm text-gray-600 font-medium">Drop a file here or click to browse</p>
+          <p className="text-xs text-gray-400">.docx or .pdf</p>
         </div>
       )}
+
+      {/* TipTap editor */}
+      <div className={`border border-gray-300 rounded-md overflow-hidden
+                       ${disabled ? "opacity-60 pointer-events-none" : ""}`}>
+        {editor && <EditorToolbar editor={editor} />}
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }
