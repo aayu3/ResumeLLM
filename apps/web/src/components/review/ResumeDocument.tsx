@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { Markdown } from "tiptap-markdown";
@@ -72,6 +73,7 @@ export function ResumeDocument({
       Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Markdown.configure({ html: true, transformPastedText: false, transformCopiedText: false }),
+      Link.configure({ autolink: true, openOnClick: false }),
       SuggestionMark,
       DiffRemovedMark,
       DiffAddedMark,

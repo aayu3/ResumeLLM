@@ -76,6 +76,17 @@ export async function parseDocx(file: File): Promise<ParseResult> {
   const { value: html } = await mammoth.convertToHtml({ arrayBuffer });
 
   const td = new TurndownService.default({ headingStyle: "atx", bulletListMarker: "-" });
+
+  // Always emit [text](url) — prevents autolink <url> when text === href.
+  td.addRule("links", {
+    filter: "a",
+    replacement: (content, node) => {
+      const href = (node as HTMLAnchorElement).getAttribute("href") ?? "";
+      if (!href) return content;
+      return `[${content || href}](${href})`;
+    },
+  });
+
   const markdown = td.turndown(html);
 
   // Return both: html for TipTap display, markdown for the LLM.

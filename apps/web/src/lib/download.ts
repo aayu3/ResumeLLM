@@ -28,6 +28,21 @@ function cleanHtmlForPdf(html: string): string {
     while (span.firstChild) parent.insertBefore(span.firstChild, span);
     parent.removeChild(span);
   });
+  // Strip autolink angle brackets: <https://...> → https://...
+  console.log("[cleanHtmlForPdf] raw html (end):", html.slice(-800));
+  div.querySelectorAll("p, li, td, span, a").forEach((el) => {
+    el.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE && node.textContent) {
+        const before = node.textContent;
+        const after = before.replace(/<(https?:[^\s>]+)(\s*)>/g, "$1$2");
+        if (before !== after) {
+          console.log("[cleanHtmlForPdf] stripped autolink:", before, "→", after);
+          node.textContent = after;
+        }
+      }
+    });
+  });
+  console.log("[cleanHtmlForPdf] cleaned html (end):", div.innerHTML.slice(-800));
   return div.innerHTML;
 }
 
