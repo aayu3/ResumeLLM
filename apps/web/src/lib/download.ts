@@ -36,13 +36,20 @@ function cleanHtmlForPdf(html: string): string {
  * no print dialog, no browser headers/footers.
  */
 export async function downloadAsPdf(editorHtml: string, filename = "resume") {
-  const [{ default: pdfMake }, pdfFontsModule, { default: htmlToPdfmake }] = await Promise.all([
+  const [{ default: pdfMake }, { default: pdfFonts }, { default: htmlToPdfmake }] = await Promise.all([
     import("pdfmake/build/pdfmake"),
     import("pdfmake/build/vfs_fonts"),
     import("html-to-pdfmake"),
   ]);
 
-  pdfMake.vfs = pdfFontsModule.pdfMake.vfs;
+  // vfs_fonts exports base64 strings; virtualfs needs raw binary (Uint8Array).
+  const vfs = (pdfMake as unknown as { virtualfs: { writeFileSync: (n: string, d: Uint8Array) => void } }).virtualfs;
+  for (const [name, b64] of Object.entries(pdfFonts as unknown as Record<string, string>)) {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    vfs.writeFileSync(name, bytes);
+  }
 
   const cleaned = cleanHtmlForPdf(editorHtml);
   const content = htmlToPdfmake(cleaned, {
