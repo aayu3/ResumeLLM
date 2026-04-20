@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build
-        run: pnpm --filter=@resume-llm/web build
+        run: pnpm --filter=@resume-llm/core build && pnpm --filter=@resume-llm/web build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
       - name: Build And Deploy
