@@ -22,12 +22,12 @@ function triggerDownload(blob: Blob, filename: string) {
  * Accepts editor.getHTML() from TipTap — already proper HTML with no
  * markdown symbols. Suggestion highlight spans are stripped by CSS.
  */
-export function downloadAsPdf(editorHtml: string) {
+export function downloadAsPdf(editorHtml: string, filename = "resume") {
   const printHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Resume</title>
+  <title>${filename}</title>
   <style>
     body {
       font-family: Georgia, "Times New Roman", serif;
@@ -66,8 +66,7 @@ export function downloadAsPdf(editorHtml: string) {
     alert("Pop-up blocked — please allow pop-ups for this site and try again.");
     return;
   }
-  win.document.write(printHtml);
-  win.document.close();
+  win.document.documentElement.innerHTML = printHtml;
   win.focus();
   setTimeout(() => win.print(), 300);
 }
@@ -144,7 +143,8 @@ function patchDocumentXml(
 export async function downloadAsDocx(
   markdown: string,
   originalFile?: File,
-  replacements: Array<{ original: string; replacement: string }> = []
+  replacements: Array<{ original: string; replacement: string }> = [],
+  filename = "resume"
 ) {
   // ── Path A: patch original DOCX ──────────────────────────────────────────
   if (originalFile && originalFile.name.endsWith(".docx")) {
@@ -158,7 +158,7 @@ export async function downloadAsDocx(
     const patched = patchDocumentXml(xml, replacements);
     zip.file("word/document.xml", patched);
     const blob = await zip.generateAsync({ type: "blob" });
-    triggerDownload(blob, "resume_optimized.docx");
+    triggerDownload(blob, `${filename}.docx`);
     return;
   }
 
@@ -186,5 +186,5 @@ export async function downloadAsDocx(
 
   const doc = new Document({ sections: [{ children }] });
   const blob = await Packer.toBlob(doc);
-  triggerDownload(blob, "resume.docx");
+  triggerDownload(blob, `${filename}.docx`);
 }

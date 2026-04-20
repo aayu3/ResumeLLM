@@ -22,6 +22,10 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
   const [activeId, setActiveId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null);
+  const [fileName, setFileName] = useState(() => {
+    const base = originalFile?.name.replace(/\.[^.]+$/, "") ?? "resume";
+    return `${base}_optimized`;
+  });
 
   // Refs for each suggestion card so we can scroll to them.
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -98,12 +102,12 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
     const markdown = getFinalMarkdown();
     try {
       if (format === "pdf") {
-        downloadAsPdf(getFinalHtml());
+        downloadAsPdf(getFinalHtml(), fileName);
       } else {
         const replacements = suggestionSegments
           .filter((s) => s.status === "accepted" && !s.orphaned && s.original)
           .map((s) => ({ original: s.original, replacement: s.edited }));
-        await downloadAsDocx(markdown, originalFile ?? undefined, replacements);
+        await downloadAsDocx(markdown, originalFile ?? undefined, replacements, fileName);
       }
     } finally {
       setDownloading(null);
@@ -126,6 +130,19 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {/* Filename — shown without extension; extension is appended on download */}
+            <div className="flex items-center gap-1 text-sm text-gray-600">
+              <input
+                type="text"
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value.replace(/[/\\?%*:|"<>]/g, ""))}
+                className="w-48 px-2 py-1 border border-gray-300 rounded-md text-sm
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Download filename"
+              />
+              <span className="text-gray-400 text-xs select-none">.pdf / .docx</span>
+            </div>
+
             <button
               className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300
                          text-gray-700 hover:bg-gray-100 transition-colors"

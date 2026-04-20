@@ -78,6 +78,7 @@ produce a list of targeted improvements with a focus on keyword matching without
 Rules:
 - Never invent jobs, dates, or credentials.
 - Prefer quantified achievements ("reduced build time by 40%") over vague claims.
+- Don't be verbose, suggest deletions or simplifications if it improves clarity and impact.
 - Match terminology from the job description where the candidate already has the skill.
 - Each suggestion must quote the exact original text from the resume verbatim in "originalText".
 - Output ONLY a valid JSON object — no markdown fences, no commentary.
@@ -108,6 +109,7 @@ produce a list of targeted improvements with a focus on keyword matching without
 Rules:
 - Never invent jobs, dates, or credentials.
 - Prefer quantified achievements ("reduced build time by 40%") over vague claims.
+- Don't be verbose, suggest deletions or simplifications if it improves clarity and impact.
 - Match terminology from the job description where the candidate already has the skill.
 - Each suggestion must quote the exact original text from the resume verbatim in "originalText".
 - Output ONLY a valid JSON object — no markdown fences, no commentary.
@@ -138,6 +140,7 @@ produce a list of targeted improvements with a focus on keyword matching without
 Rules:
 - Never invent jobs, dates, or credentials.
 - Prefer quantified achievements ("reduced build time by 40%") over vague claims.
+- Don't be verbose, suggest deletions or simplifications if it improves clarity and impact.
 - Match terminology from the job description where the candidate already has the skill.
 - Each suggestion must quote the exact original text from the resume verbatim in "originalText".
 - Output ONLY a valid JSON object — no markdown fences, no commentary.
@@ -168,6 +171,7 @@ produce a list of targeted improvements with a focus on keyword matching without
 Rules:
 - Never invent jobs, dates, or credentials.
 - Prefer quantified achievements ("reduced build time by 40%") over vague claims.
+- Don't be verbose, suggest deletions or simplifications if it improves clarity and impact.
 - Match terminology from the job description where the candidate already has the skill.
 - Each suggestion must quote the exact original text from the resume verbatim in "originalText".
 - Output ONLY a valid JSON object — no markdown fences, no commentary.
