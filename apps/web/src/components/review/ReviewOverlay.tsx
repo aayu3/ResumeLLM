@@ -66,6 +66,32 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
     updateSegment(seg.id, { status: "accepted" });
   }, [updateSegment]);
 
+  const [bulkAcceptedIds, setBulkAcceptedIds] = useState<Set<string> | null>(null);
+
+  const handleAcceptAll = useCallback(() => {
+    const ids = new Set(
+      segments
+        .filter((s): s is SuggestionSegment => s.type === "suggestion" && s.status === "pending")
+        .map((s) => s.id)
+    );
+    setBulkAcceptedIds(ids);
+    setSegments((prev) =>
+      prev.map((seg) =>
+        seg.type === "suggestion" && ids.has(seg.id) ? { ...seg, status: "accepted" } : seg
+      )
+    );
+  }, [segments]);
+
+  const handleUndoAll = useCallback(() => {
+    if (!bulkAcceptedIds) return;
+    setSegments((prev) =>
+      prev.map((seg) =>
+        seg.type === "suggestion" && bulkAcceptedIds.has(seg.id) ? { ...seg, status: "pending" } : seg
+      )
+    );
+    setBulkAcceptedIds(null);
+  }, [bulkAcceptedIds]);
+
   const handleReject = useCallback((seg: SuggestionSegment) => {
     updateSegment(seg.id, { status: "rejected" });
   }, [updateSegment]);
@@ -202,6 +228,23 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
 
           {/* Right — suggestion cards */}
           <div className="w-96 shrink-0 overflow-y-auto p-4 flex flex-col gap-3 bg-gray-50 dark:bg-gray-800">
+            {bulkAcceptedIds ? (
+              <button
+                className="w-full px-3 py-1.5 text-sm font-medium rounded-md bg-red-600 text-white
+                           hover:bg-red-700 transition-colors"
+                onClick={handleUndoAll}
+              >
+                Undo All
+              </button>
+            ) : pending > 0 && (
+              <button
+                className="w-full px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white
+                           hover:bg-green-700 transition-colors"
+                onClick={handleAcceptAll}
+              >
+                Accept All ({pending})
+              </button>
+            )}
             {suggestionSegments.length === 0 ? (
               <p className="text-sm text-gray-400 dark:text-gray-500 text-center mt-8">No suggestions.</p>
             ) : (
