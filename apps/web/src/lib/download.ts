@@ -29,7 +29,6 @@ function cleanHtmlForPdf(html: string): string {
     parent.removeChild(span);
   });
   // Strip autolink angle brackets: <https://...> → https://...
-  console.log("[cleanHtmlForPdf] raw html (end):", html.slice(-800));
   div.querySelectorAll("p, li, td, span, a").forEach((el) => {
     el.childNodes.forEach((node) => {
       if (node.nodeType === Node.TEXT_NODE && node.textContent) {
@@ -42,7 +41,6 @@ function cleanHtmlForPdf(html: string): string {
       }
     });
   });
-  console.log("[cleanHtmlForPdf] cleaned html (end):", div.innerHTML.slice(-800));
   return div.innerHTML;
 }
 
