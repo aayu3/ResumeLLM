@@ -79,12 +79,14 @@ export type Suggestion = z.infer<typeof SuggestionSchema>;
  * We compute that ourselves by applying suggestions to the original.
  */
 export const LLMOptimizeResponseSchema = z.object({
+  originalContent: z.string().optional(),
   suggestions: z.array(SuggestionSchema),
   gapAnalysis: GapAnalysisResultSchema,
 });
 export type LLMOptimizeResponse = z.infer<typeof LLMOptimizeResponseSchema>;
 
 export const OptimizeResultSchema = z.object({
+  originalContent: z.string().optional(),
   suggestions: z.array(SuggestionSchema),
   gapAnalysis: GapAnalysisResultSchema,
 });
@@ -94,5 +96,6 @@ export const OptimizeRequestSchema = z.object({
   resumeMarkdown: z.string().min(1, "Resume text is required"),
   jobDescription: z.string().min(1, "Job description is required"),
   provider: ProviderMetaSchema,
+  isPdf: z.boolean().optional(),
 });
 export type OptimizeRequest = z.infer<typeof OptimizeRequestSchema>;

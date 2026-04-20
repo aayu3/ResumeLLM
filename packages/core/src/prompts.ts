@@ -1,6 +1,6 @@
 // ── Task types ────────────────────────────────────────────────────────────────
 
-export type PromptTask = "gap_analysis" | "optimize";
+export type PromptTask = "gap_analysis" | "optimize" | "optimize_pdf";
 
 // ── System prompts ────────────────────────────────────────────────────────────
 
@@ -32,6 +32,39 @@ Rules:
 
 Schema:
 {
+  "suggestions": [
+    {
+      "originalText": string,   // exact verbatim text from the resume to be replaced
+      "suggestedText": string,  // improved replacement text
+      "reason": string,
+      "section": "summary" | "experience" | "skills" | "education" | "projects" | "certifications" | "other"
+    }
+  ],
+  "gapAnalysis": {
+    "missingKeywords": string[],
+    "missingSkills": string[],
+    "toneIssues": string[],
+    "strengthsFound": string[],
+    "overallMatchScore": number // 0-100 integer representing keyword + skills alignment
+  }
+}`,
+
+  optimize_pdf: `\
+You are an expert resume writer. Given a resume extracted from a PDF and a job description, \
+produce a formatted Markdown version of the ORIGINAL PDF content and a list of targeted improvements \
+with a focus on keyword matching without fabricating experience.
+
+Rules:
+- Never invent jobs, dates, or credentials.
+- Prefer quantified achievements ("reduced build time by 40%") over vague claims.
+- Don't be verbose, suggest deletions or simplifications if it improves clarity and impact.
+- Match terminology from the job description where the candidate already has the skill.
+- Each suggestion must quote the exact original text from the resume verbatim in "originalText".
+- Output ONLY a valid JSON object — no markdown fences, no commentary.
+
+Schema:
+{
+  "originalContent": string,  // Markdown-formatted version of the original PDF content
   "suggestions": [
     {
       "originalText": string,   // exact verbatim text from the resume to be replaced

@@ -163,12 +163,14 @@ export async function optimizeResume(
 ): Promise<OptimizeResult> {
   const validated = OptimizeRequestSchema.parse(request);
 
+  const task = validated.isPdf ? "optimize_pdf" : "optimize";
+
   const response = await client.chat.completions.create({
     model: validated.provider.model,
     messages: [
       {
         role: "system",
-        content: getSystemPrompt("optimize", systemPromptOverride),
+        content: getSystemPrompt(task, systemPromptOverride),
       },
       {
         role: "user",
@@ -181,6 +183,6 @@ export async function optimizeResume(
   });
 
   const raw = response.choices[0]?.message?.content ?? "";
-  const { suggestions, gapAnalysis } = parseLLMOptimizeResponse(raw);
-  return OptimizeResultSchema.parse({ suggestions, gapAnalysis });
+  const { originalContent, suggestions, gapAnalysis } = parseLLMOptimizeResponse(raw);
+  return OptimizeResultSchema.parse({ originalContent, suggestions, gapAnalysis });
 }

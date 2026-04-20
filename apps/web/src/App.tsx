@@ -84,7 +84,8 @@ export function App() {
     setError(null);
     setLoading("optimize");
     try {
-      const result = await optimizeResume({ resumeMarkdown, jobDescription, provider }, apiKey || undefined);
+      const isPdf = originalFile?.name.toLowerCase().endsWith(".pdf") ?? false;
+      const result = await optimizeResume({ resumeMarkdown, jobDescription, provider, isPdf }, apiKey || undefined);
       setOptimizeResult(result);
       setGapResult(result.gapAnalysis);
     } catch (err) {

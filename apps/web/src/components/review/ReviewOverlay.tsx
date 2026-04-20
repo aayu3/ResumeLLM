@@ -15,8 +15,12 @@ interface ReviewOverlayProps {
 }
 
 export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }: ReviewOverlayProps) {
+  // When the LLM returns a reformatted version of the PDF content, use it as
+  // the source of truth so segments and exports reflect clean formatting.
+  const baseMarkdown = result.originalContent ?? resumeMarkdown;
+
   const [segments, setSegments] = useState<Segment[]>(() =>
-    buildSegments(resumeMarkdown, result.suggestions)
+    buildSegments(baseMarkdown, result.suggestions)
   );
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -34,9 +38,9 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
 
   // Re-build segments if result changes (new optimization run).
   useEffect(() => {
-    setSegments(buildSegments(resumeMarkdown, result.suggestions));
+    setSegments(buildSegments(baseMarkdown, result.suggestions));
     setActiveId(null);
-  }, [result, resumeMarkdown]);
+  }, [result, baseMarkdown]);
 
   // Close on Escape.
   useEffect(() => {

@@ -12,6 +12,7 @@ export interface ApiPayload {
   resumeMarkdown: string;
   jobDescription: string;
   provider: ProviderMeta;
+  isPdf?: boolean;
 }
 
 function buildClient(provider: ProviderMeta, apiKey: string): OpenAI {
@@ -43,7 +44,7 @@ export async function analyzeGap(payload: ApiPayload, apiKey?: string): Promise<
 
 export async function optimizeResume(payload: ApiPayload, apiKey?: string): Promise<OptimizeResult> {
   return coreOptimizeResume(
-    { resumeMarkdown: payload.resumeMarkdown, jobDescription: payload.jobDescription, provider: payload.provider },
+    { resumeMarkdown: payload.resumeMarkdown, jobDescription: payload.jobDescription, provider: payload.provider, isPdf: payload.isPdf },
     buildClient(payload.provider, apiKey ?? "no-key")
   );
 }
