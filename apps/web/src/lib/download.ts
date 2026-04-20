@@ -160,22 +160,50 @@ export async function downloadAsDocx(
   // ── Path B: generate fresh DOCX from markdown (no original file) ─────────
   const { Document, Paragraph, TextRun, HeadingLevel, Packer } = await import("docx");
 
+  // Strip HTML tags, preserving text content (handles TipTap suggestion spans).
+  function stripHtml(text: string): string {
+    const div = document.createElement("div");
+    div.innerHTML = text;
+    return div.textContent ?? "";
+  }
+
+  // Parse inline markdown bold/italic into TextRun objects.
+  function inlineRuns(text: string): InstanceType<typeof TextRun>[] {
+    const runs: InstanceType<typeof TextRun>[] = [];
+    // Matches ***bold+italic***, **bold**, *italic*, and plain text segments.
+    const re = /(\*{3}(.+?)\*{3}|\*{2}(.+?)\*{2}|\*(.+?)\*|([^*]+))/g;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text)) !== null) {
+      if (match[2] !== undefined) {
+        runs.push(new TextRun({ text: match[2], bold: true, italics: true }));
+      } else if (match[3] !== undefined) {
+        runs.push(new TextRun({ text: match[3], bold: true }));
+      } else if (match[4] !== undefined) {
+        runs.push(new TextRun({ text: match[4], italics: true }));
+      } else if (match[5] !== undefined) {
+        runs.push(new TextRun({ text: match[5] }));
+      }
+    }
+    return runs.length ? runs : [new TextRun({ text })];
+  }
+
   type DocxChild = InstanceType<typeof Paragraph>;
   const children: DocxChild[] = [];
 
   for (const rawLine of markdown.split("\n")) {
-    if (rawLine.startsWith("# ")) {
-      children.push(new Paragraph({ text: rawLine.slice(2).trim(), heading: HeadingLevel.HEADING_1 }));
-    } else if (rawLine.startsWith("## ")) {
-      children.push(new Paragraph({ text: rawLine.slice(3).trim(), heading: HeadingLevel.HEADING_2 }));
-    } else if (rawLine.startsWith("### ")) {
-      children.push(new Paragraph({ text: rawLine.slice(4).trim(), heading: HeadingLevel.HEADING_3 }));
-    } else if (/^[-*] /.test(rawLine)) {
-      children.push(new Paragraph({ text: rawLine.slice(2).trim(), bullet: { level: 0 } }));
-    } else if (rawLine.trim() === "") {
+    const line = stripHtml(rawLine);
+    if (line.startsWith("# ")) {
+      children.push(new Paragraph({ children: inlineRuns(line.slice(2).trim()), heading: HeadingLevel.HEADING_1 }));
+    } else if (line.startsWith("## ")) {
+      children.push(new Paragraph({ children: inlineRuns(line.slice(3).trim()), heading: HeadingLevel.HEADING_2 }));
+    } else if (line.startsWith("### ")) {
+      children.push(new Paragraph({ children: inlineRuns(line.slice(4).trim()), heading: HeadingLevel.HEADING_3 }));
+    } else if (/^[-*] /.test(line)) {
+      children.push(new Paragraph({ children: inlineRuns(line.slice(2).trim()), bullet: { level: 0 } }));
+    } else if (line.trim() === "") {
       children.push(new Paragraph({ children: [new TextRun("")] }));
     } else {
-      children.push(new Paragraph({ text: rawLine }));
+      children.push(new Paragraph({ children: inlineRuns(line) }));
     }
   }
 
