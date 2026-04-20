@@ -37,8 +37,8 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_THANKFUL_FLOWER_0EB7AA91E }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "apps/web"
-          output_location: "dist"
+          app_location: "apps/web/dist"
+          output_location: ""
           skip_app_build: true
 
   close_pull_request_job:
