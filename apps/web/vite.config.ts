@@ -28,6 +28,7 @@ export default defineConfig({
           "vendor-pdf": ["pdfjs-dist"],
           "vendor-docx": ["docx"],
           "vendor-mammoth": ["mammoth"],
+          "vendor-zip": ["jszip"],
         },
       },
     },

@@ -17,8 +17,8 @@ function Btn({ active, disabled, title, onClick, children }: ToolbarButtonProps)
       onClick={onClick}
       className={`px-2 py-1 rounded text-sm transition-colors
         ${active
-          ? "bg-gray-200 text-gray-900"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}
+          ? "bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100"
+          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"}
         disabled:opacity-40 disabled:cursor-not-allowed`}
     >
       {children}
@@ -27,7 +27,7 @@ function Btn({ active, disabled, title, onClick, children }: ToolbarButtonProps)
 }
 
 function Divider() {
-  return <div className="w-px h-5 bg-gray-200 mx-0.5 self-center" />;
+  return <div className="w-px h-5 bg-gray-200 dark:bg-gray-600 mx-0.5 self-center" />;
 }
 
 interface EditorToolbarProps {
@@ -36,7 +36,7 @@ interface EditorToolbarProps {
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-200 bg-gray-50 shrink-0">
+    <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shrink-0">
 
       {/* Text style */}
       <Btn title="Bold" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>

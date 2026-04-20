@@ -17,7 +17,7 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 function TagList({ items, color }: { items: string[]; color: string }) {
-  if (items.length === 0) return <p className="text-sm text-gray-400">None found.</p>;
+  if (items.length === 0) return <p className="text-sm text-gray-400 dark:text-gray-500">None found.</p>;
   return (
     <ul className="flex flex-wrap gap-1.5">
       {items.map((item) => (
@@ -31,11 +31,11 @@ function TagList({ items, color }: { items: string[]; color: string }) {
 
 export function GapAnalysisCard({ result }: GapAnalysisCardProps) {
   return (
-    <div className="flex flex-col gap-4 p-4 border border-gray-200 rounded-lg bg-white">
+    <div className="flex flex-col gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-800">Gap Analysis</h2>
+        <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100">Gap Analysis</h2>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Match score</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">Match score</span>
           <ScoreBadge score={result.overallMatchScore} />
         </div>
       </div>
@@ -62,7 +62,7 @@ export function GapAnalysisCard({ result }: GapAnalysisCardProps) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{title}</p>
+      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{title}</p>
       {children}
     </div>
   );

@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+@variant dark (&:where(.dark, .dark *));
+
+.dark .prose { color: theme(colors.gray.200); }
+.dark .prose h1, .dark .prose h2, .dark .prose h3 { color: theme(colors.gray.100); }
+.dark .prose strong { color: theme(colors.gray.100); }
+.dark .prose a { color: theme(colors.blue.400); }
+
 /* ── Suggestion mark styles ──────────────────────────────────────────────── */
 span[data-suggestion-id] {
   border-radius: 0.25rem;
@@ -9,28 +16,49 @@ span[data-suggestion-id] {
 }
 
 span[data-status="pending"] {
-  background-color: rgb(254 249 195);   /* yellow-100 */
-  color: rgb(113 63 18);               /* yellow-900 */
+  background-color: rgb(254 249 195);
+  color: rgb(113 63 18);
 }
 span[data-status="pending"]:hover {
-  background-color: rgb(254 240 138);  /* yellow-200 */
+  background-color: rgb(254 240 138);
+}
+.dark span[data-status="pending"] {
+  background-color: rgb(113 63 18 / 0.4);
+  color: rgb(254 240 138);
+}
+.dark span[data-status="pending"]:hover {
+  background-color: rgb(113 63 18 / 0.6);
 }
 
 span[data-status="accepted"] {
-  background-color: rgb(220 252 231);  /* green-100 */
-  color: rgb(20 83 45);               /* green-900 */
+  background-color: rgb(220 252 231);
+  color: rgb(20 83 45);
 }
 span[data-status="accepted"]:hover {
-  background-color: rgb(187 247 208);  /* green-200 */
+  background-color: rgb(187 247 208);
+}
+.dark span[data-status="accepted"] {
+  background-color: rgb(20 83 45 / 0.4);
+  color: rgb(187 247 208);
+}
+.dark span[data-status="accepted"]:hover {
+  background-color: rgb(20 83 45 / 0.6);
 }
 
 span[data-status="rejected"] {
-  background-color: rgb(254 226 226);  /* red-100 */
-  color: rgb(239 68 68);              /* red-500 */
+  background-color: rgb(254 226 226);
+  color: rgb(239 68 68);
   text-decoration: line-through;
 }
 span[data-status="rejected"]:hover {
-  background-color: rgb(254 202 202); /* red-200 */
+  background-color: rgb(254 202 202);
+}
+.dark span[data-status="rejected"] {
+  background-color: rgb(127 29 29 / 0.4);
+  color: rgb(252 165 165);
+}
+.dark span[data-status="rejected"]:hover {
+  background-color: rgb(127 29 29 / 0.6);
 }
 
 span[data-suggestion-id][data-hovered] {

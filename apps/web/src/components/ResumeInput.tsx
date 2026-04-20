@@ -104,10 +104,11 @@ export function ResumeInput({ value, onChange, onFile, disabled }: ResumeInputPr
     <div className="flex flex-col gap-1.5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-gray-700">Resume</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Resume</label>
         <button
-          className="text-xs px-2.5 py-1 rounded border border-gray-300 text-gray-600
-                     hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="text-xs px-2.5 py-1 rounded border border-gray-300 dark:border-gray-600
+                     text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700
+                     transition-colors disabled:opacity-50"
           onClick={() => setShowUpload((v) => !v)}
           disabled={disabled || parsing}
         >
@@ -117,7 +118,7 @@ export function ResumeInput({ value, onChange, onFile, disabled }: ResumeInputPr
 
       {/* Warnings */}
       {warnings.map((w) => (
-        <div key={w} className="px-3 py-2 text-xs bg-amber-50 border border-amber-200 rounded-md text-amber-800">
+        <div key={w} className="px-3 py-2 text-xs bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md text-amber-800 dark:text-amber-400">
           {WARNING_MESSAGES[w]}
         </div>
       ))}
@@ -127,7 +128,7 @@ export function ResumeInput({ value, onChange, onFile, disabled }: ResumeInputPr
         <div
           className={`flex flex-col items-center justify-center gap-3 h-32 border-2 border-dashed rounded-md
                       transition-colors cursor-pointer
-                      ${dragOver ? "border-blue-400 bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}
+                      ${dragOver ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20" : "border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"}
                       ${disabled || parsing ? "opacity-50 pointer-events-none" : ""}`}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
@@ -135,13 +136,13 @@ export function ResumeInput({ value, onChange, onFile, disabled }: ResumeInputPr
           onClick={() => fileInputRef.current?.click()}
         >
           <input ref={fileInputRef} type="file" accept=".docx,.pdf" className="hidden" onChange={handleInputChange} />
-          <p className="text-sm text-gray-600 font-medium">Drop a file here or click to browse</p>
-          <p className="text-xs text-gray-400">.docx or .pdf</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Drop a file here or click to browse</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">.docx or .pdf</p>
         </div>
       )}
 
       {/* TipTap editor */}
-      <div className={`border border-gray-300 rounded-md overflow-hidden
+      <div className={`border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-md overflow-hidden
                        ${disabled ? "opacity-60 pointer-events-none" : ""}`}>
         {editor && <EditorToolbar editor={editor} />}
         <EditorContent editor={editor} />

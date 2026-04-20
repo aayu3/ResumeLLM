@@ -119,13 +119,13 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
       className="fixed inset-0 z-50 flex items-stretch bg-black/50"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative flex flex-col w-full max-w-7xl mx-auto my-6 bg-white rounded-xl shadow-2xl overflow-hidden">
+      <div className="relative flex flex-col w-full max-w-7xl mx-auto my-6 bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 shrink-0">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-base font-semibold text-gray-900">Review Suggestions</h2>
-            <span className="text-sm text-gray-400">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Review Suggestions</h2>
+            <span className="text-sm text-gray-400 dark:text-gray-500">
               {accepted} accepted · {rejected} rejected · {pending} pending
             </span>
           </div>
@@ -136,35 +136,36 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
                 type="text"
                 value={fileName}
                 onChange={(e) => setFileName(e.target.value.replace(/[/\\?%*:|"<>]/g, ""))}
-                className="w-48 px-2 py-1 border border-gray-300 rounded-md text-sm
+                className="w-48 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm
+                           bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 aria-label="Download filename"
               />
-              <span className="text-gray-400 text-xs select-none">.pdf / .docx</span>
+              <span className="text-gray-400 dark:text-gray-500 text-xs select-none">.pdf / .docx</span>
             </div>
 
             <button
-              className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300
-                         text-gray-700 hover:bg-gray-100 transition-colors"
+              className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 dark:border-gray-600
+                         text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               onClick={handleCopy}
             >
               {copied ? "Copied!" : "Copy Markdown"}
             </button>
 
             {/* Download group */}
-            <div className="flex items-center divide-x divide-gray-200 border border-gray-300 rounded-md overflow-hidden text-sm font-medium text-gray-700">
-              <span className="px-2.5 py-1.5 bg-gray-50 text-xs text-gray-500 select-none">
+            <div className="flex items-center divide-x divide-gray-200 dark:divide-gray-600 border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden text-sm font-medium text-gray-700 dark:text-gray-300">
+              <span className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-700 text-xs text-gray-500 dark:text-gray-400 select-none">
                 Download
               </span>
               <button
-                className="px-2.5 py-1.5 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                className="px-2.5 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
                 onClick={() => handleDownload("pdf")}
                 disabled={downloading !== null}
               >
                 {downloading === "pdf" ? "…" : "PDF"}
               </button>
               <button
-                className="px-2.5 py-1.5 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                className="px-2.5 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
                 onClick={() => handleDownload("docx")}
                 disabled={downloading !== null}
               >
@@ -172,7 +173,7 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
               </button>
             </div>
             <button
-              className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              className="p-1.5 rounded-md text-gray-400 hover:text-gray-200 hover:bg-gray-700 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
               onClick={onClose}
               aria-label="Close"
             >
@@ -185,7 +186,7 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
         <div className="flex flex-1 overflow-hidden">
 
           {/* Left — resume document */}
-          <div className="flex-1 overflow-y-auto p-6 border-r border-gray-200">
+          <div className="flex-1 overflow-y-auto p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
             <ResumeDocument
               segments={segments}
               hoveredId={hoveredId}
@@ -196,9 +197,9 @@ export function ReviewOverlay({ result, resumeMarkdown, originalFile, onClose }:
           </div>
 
           {/* Right — suggestion cards */}
-          <div className="w-96 shrink-0 overflow-y-auto p-4 flex flex-col gap-3 bg-gray-50">
+          <div className="w-96 shrink-0 overflow-y-auto p-4 flex flex-col gap-3 bg-gray-50 dark:bg-gray-800">
             {suggestionSegments.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center mt-8">No suggestions.</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 text-center mt-8">No suggestions.</p>
             ) : (
               suggestionSegments.map((seg) => (
                 <div
