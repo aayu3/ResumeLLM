@@ -61,5 +61,45 @@ export function diffWords(original: string, suggested: string): DiffToken[] {
     }
   }
 
-  return merged;
+  // Group interleaved removed/added runs into [all-removed, all-added] blocks
+  // so the diff reads as a whole section replacement rather than alternating words.
+  const grouped: DiffToken[] = [];
+  let gi = 0;
+  while (gi < merged.length) {
+    const tok = merged[gi];
+    if (tok.type === "equal") {
+      grouped.push(tok);
+      gi++;
+    } else {
+      // Collect a contiguous run of removed/added tokens.
+      // Also absorb equal tokens that contain no word characters (spaces, commas,
+      // periods, etc.) when they appear between changes — they'd otherwise produce
+      // a flood of consecutive pairs.
+      let removed = "";
+      let added = "";
+      while (gi < merged.length) {
+        const cur = merged[gi];
+        if (cur.type !== "equal") {
+          if (cur.type === "removed") removed += cur.text;
+          else added += cur.text;
+          gi++;
+        } else if (
+          !/\w/.test(cur.text) &&
+          gi + 1 < merged.length &&
+          merged[gi + 1].type !== "equal"
+        ) {
+          // Non-word equal token (whitespace/punctuation) between changes — absorb.
+          removed += cur.text;
+          added += cur.text;
+          gi++;
+        } else {
+          break;
+        }
+      }
+      if (removed) grouped.push({ type: "removed", text: removed });
+      if (added) grouped.push({ type: "added", text: added });
+    }
+  }
+
+  return grouped;
 }
