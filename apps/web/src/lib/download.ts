@@ -66,6 +66,26 @@ export async function downloadAsPdf(editorHtml: string, filename = "resume") {
   pdfMake.createPdf(docDef).download(`${filename}.pdf`);
 }
 
+const W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+const R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const RELS_NS = "http://schemas.openxmlformats.org/package/2006/relationships";
+
+type LinkSegment = { type: "text"; text: string } | { type: "link"; text: string; url: string };
+
+function parseMarkdownLinks(text: string): LinkSegment[] {
+  const out: LinkSegment[] = [];
+  const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push({ type: "text", text: text.slice(last, m.index) });
+    out.push({ type: "link", text: m[1], url: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ type: "text", text: text.slice(last) });
+  return out.length ? out : [{ type: "text", text }];
+}
+
 /**
  * Collects all text content from a <w:r> run element (handles split <w:t> nodes).
  */
@@ -77,23 +97,21 @@ function runText(run: Element): string {
 
 /**
  * Applies text replacements to word/document.xml inside the original DOCX.
- *
- * Strategy: walk every paragraph, collect its full text by concatenating runs,
- * then if that text contains `original`, replace it with `replacement` by
- * rewriting the first run's <w:t> and clearing all subsequent runs in that
- * paragraph. This preserves all run formatting (bold, italic, font, size, color)
- * on the first run of each changed paragraph.
+ * When replacement text contains markdown links [text](url), builds proper
+ * OOXML <w:hyperlink> elements and returns the relationship entries to add
+ * to word/_rels/document.xml.rels.
  */
 function patchDocumentXml(
   xml: string,
-  replacements: Array<{ original: string; replacement: string }>
-): string {
+  replacements: Array<{ original: string; replacement: string }>,
+  startRelId: number
+): { xml: string; newRels: Array<{ id: string; url: string }> } {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xml, "application/xml");
+  const newRels: Array<{ id: string; url: string }> = [];
+  let relIdN = startRelId;
 
-  const paragraphs = doc.querySelectorAll("p");
-
-  for (const para of paragraphs) {
+  for (const para of doc.querySelectorAll("p")) {
     const runs = Array.from(para.querySelectorAll("r"));
     if (runs.length === 0) continue;
 
@@ -103,25 +121,69 @@ function patchDocumentXml(
       if (!paraText.includes(original)) continue;
 
       const newText = paraText.replace(original, replacement);
+      const segments = parseMarkdownLinks(newText);
+      const hasLinks = segments.some((s) => s.type === "link");
 
-      // Put entire new text into the first run's first <w:t>, clear the rest.
-      const firstT = runs[0].querySelector("t");
-      if (firstT) {
-        firstT.textContent = newText;
-        // Preserve leading/trailing whitespace.
-        firstT.setAttribute("xml:space", "preserve");
+      if (!hasLinks) {
+        // Simple path: rewrite first run's text, clear the rest.
+        const firstT = runs[0].querySelector("t");
+        if (firstT) {
+          firstT.textContent = newText;
+          firstT.setAttribute("xml:space", "preserve");
+        }
+        for (let i = 1; i < runs.length; i++) {
+          runs[i].querySelectorAll("t").forEach((t) => t.remove());
+        }
+      } else {
+        // Complex path: rebuild paragraph content as text runs + hyperlink elements.
+        const rPr = runs[0].querySelector("rPr");
+
+        // Remove all run/hyperlink direct children, preserving pPr etc.
+        Array.from(para.children).forEach((child) => {
+          if (child.localName === "r" || child.localName === "hyperlink") child.remove();
+        });
+
+        for (const seg of segments) {
+          if (seg.type === "text" && seg.text) {
+            const run = doc.createElementNS(W_NS, "w:r");
+            if (rPr) run.appendChild(rPr.cloneNode(true));
+            const t = doc.createElementNS(W_NS, "w:t");
+            t.textContent = seg.text;
+            if (seg.text.startsWith(" ") || seg.text.endsWith(" ")) {
+              t.setAttribute("xml:space", "preserve");
+            }
+            run.appendChild(t);
+            para.appendChild(run);
+          } else if (seg.type === "link") {
+            const relId = `rId${relIdN++}`;
+            newRels.push({ id: relId, url: seg.url });
+
+            const hl = doc.createElementNS(W_NS, "w:hyperlink");
+            hl.setAttributeNS(R_NS, "r:id", relId);
+
+            const run = doc.createElementNS(W_NS, "w:r");
+            const runRpr = doc.createElementNS(W_NS, "w:rPr");
+            const color = doc.createElementNS(W_NS, "w:color");
+            color.setAttributeNS(W_NS, "w:val", "0563C1");
+            const ul = doc.createElementNS(W_NS, "w:u");
+            ul.setAttributeNS(W_NS, "w:val", "single");
+            runRpr.appendChild(color);
+            runRpr.appendChild(ul);
+            run.appendChild(runRpr);
+            const t = doc.createElementNS(W_NS, "w:t");
+            t.textContent = seg.text;
+            run.appendChild(t);
+            hl.appendChild(run);
+            para.appendChild(hl);
+          }
+        }
       }
 
-      // Remove all <w:t> nodes from subsequent runs so text isn't doubled.
-      for (let i = 1; i < runs.length; i++) {
-        runs[i].querySelectorAll("t").forEach((t) => t.remove());
-      }
-
-      break; // only one replacement per paragraph
+      break;
     }
   }
 
-  return new XMLSerializer().serializeToString(doc);
+  return { xml: new XMLSerializer().serializeToString(doc), newRels };
 }
 
 /**
@@ -149,9 +211,36 @@ export async function downloadAsDocx(
     const xmlEntry = zip.file("word/document.xml");
     if (!xmlEntry) throw new Error("word/document.xml not found in DOCX");
 
-    const xml = await xmlEntry.async("string");
-    const patched = patchDocumentXml(xml, replacements);
+    const relsPath = "word/_rels/document.xml.rels";
+    const [xml, relsXml] = await Promise.all([
+      xmlEntry.async("string"),
+      zip.file(relsPath)?.async("string") ?? Promise.resolve(""),
+    ]);
+
+    // Find the max existing numeric rId so new ones don't collide.
+    const maxRelId = [...relsXml.matchAll(/Id="rId(\d+)"/g)]
+      .reduce((max, m) => Math.max(max, parseInt(m[1])), 0);
+
+    const { xml: patched, newRels } = patchDocumentXml(xml, replacements, maxRelId + 1);
     zip.file("word/document.xml", patched);
+
+    if (newRels.length) {
+      const relsParser = new DOMParser();
+      const relsDoc = relsParser.parseFromString(
+        relsXml || `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${RELS_NS}"></Relationships>`,
+        "application/xml"
+      );
+      for (const { id, url } of newRels) {
+        const rel = relsDoc.createElementNS(RELS_NS, "Relationship");
+        rel.setAttribute("Id", id);
+        rel.setAttribute("Type", "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink");
+        rel.setAttribute("Target", url);
+        rel.setAttribute("TargetMode", "External");
+        relsDoc.documentElement.appendChild(rel);
+      }
+      zip.file(relsPath, new XMLSerializer().serializeToString(relsDoc));
+    }
+
     const blob = await zip.generateAsync({ type: "blob" });
     triggerDownload(blob, `${filename}.docx`);
     return;
