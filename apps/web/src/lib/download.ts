@@ -16,59 +16,54 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 /**
- * Opens the resume in a new print-ready window and triggers the browser
- * print dialog (Save as PDF).
- *
- * Accepts editor.getHTML() from TipTap — already proper HTML with no
- * markdown symbols. Suggestion highlight spans are stripped by CSS.
+ * Strips suggestion/diff spans from TipTap HTML so they don't appear in the PDF.
  */
-export function downloadAsPdf(editorHtml: string, filename = "resume") {
-  const printHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${filename}</title>
-  <style>
-    body {
-      font-family: Georgia, "Times New Roman", serif;
-      max-width: 750px;
-      margin: 0 auto;
-      padding: 32px 24px;
-      font-size: 11pt;
-      line-height: 1.55;
-      color: #111;
-    }
-    h1 { font-size: 20pt; margin: 0 0 4px; }
-    h2 { font-size: 13pt; border-bottom: 1px solid #bbb; padding-bottom: 3px; margin: 18px 0 6px; }
-    h3 { font-size: 11pt; margin: 10px 0 2px; }
-    p  { margin: 3px 0; }
-    ul { margin: 4px 0; padding-left: 18px; }
-    li { margin: 2px 0; }
-    a  { color: inherit; }
-    @media print {
-      body { padding: 0; }
-      @page { margin: 1.5cm 1.8cm; }
-    }
-    /* Strip suggestion highlight colours for print. */
-    span[data-suggestion-id] {
-      background: none !important;
-      color: inherit !important;
-      text-decoration: none !important;
-      outline: none !important;
-    }
-  </style>
-</head>
-<body>${editorHtml}</body>
-</html>`;
+function cleanHtmlForPdf(html: string): string {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  // Unwrap suggestion highlight spans — keep their text content.
+  div.querySelectorAll("span[data-suggestion-id], span.diff-removed, span.diff-added").forEach((span) => {
+    const parent = span.parentNode;
+    if (!parent) return;
+    while (span.firstChild) parent.insertBefore(span.firstChild, span);
+    parent.removeChild(span);
+  });
+  return div.innerHTML;
+}
 
-  const win = window.open("", "_blank");
-  if (!win) {
-    alert("Pop-up blocked — please allow pop-ups for this site and try again.");
-    return;
-  }
-  win.document.documentElement.innerHTML = printHtml;
-  win.focus();
-  setTimeout(() => win.print(), 300);
+/**
+ * Generates a PDF via pdfmake + html-to-pdfmake and downloads it directly —
+ * no print dialog, no browser headers/footers.
+ */
+export async function downloadAsPdf(editorHtml: string, filename = "resume") {
+  const [{ default: pdfMake }, pdfFontsModule, { default: htmlToPdfmake }] = await Promise.all([
+    import("pdfmake/build/pdfmake"),
+    import("pdfmake/build/vfs_fonts"),
+    import("html-to-pdfmake"),
+  ]);
+
+  pdfMake.vfs = pdfFontsModule.pdfMake.vfs;
+
+  const cleaned = cleanHtmlForPdf(editorHtml);
+  const content = htmlToPdfmake(cleaned, {
+    removeExtraBlanks: true,
+    defaultStyles: {
+      h1: { fontSize: 20, bold: true, marginBottom: 4 },
+      h2: { fontSize: 13, bold: true, marginTop: 14, marginBottom: 4, decoration: "underline" },
+      h3: { fontSize: 11, bold: true, marginTop: 8, marginBottom: 2 },
+      p:  { fontSize: 10.5, lineHeight: 1.4, marginBottom: 2 },
+      li: { fontSize: 10.5, lineHeight: 1.4 },
+      a:  { color: "black", decoration: null },
+    },
+  });
+
+  const docDef = {
+    pageMargins: [50, 50, 50, 50] as [number, number, number, number],
+    defaultStyle: { font: "Roboto", fontSize: 10.5, lineHeight: 1.4 },
+    content: content as import("pdfmake/interfaces").Content,
+  };
+
+  pdfMake.createPdf(docDef).download(`${filename}.pdf`);
 }
 
 /**

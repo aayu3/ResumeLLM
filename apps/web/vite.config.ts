@@ -25,10 +25,11 @@ export default defineConfig({
             "tiptap-markdown",
           ],
           // Heavy lazy-loaded libs — only fetched on first use.
-          "vendor-pdf": ["pdfjs-dist"],
+          "vendor-pdf": ["pdfjs-dist", "unpdf"],
           "vendor-docx": ["docx"],
           "vendor-mammoth": ["mammoth"],
           "vendor-zip": ["jszip"],
+          "vendor-pdfmake": ["pdfmake", "html-to-pdfmake"],
         },
       },
     },

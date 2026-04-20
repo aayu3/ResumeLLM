@@ -7,25 +7,7 @@ export interface ParseResult {
   warnings: ParseWarning[];
 }
 
-// ── DOCX ─────────────────────────────────────────────────────────────────────
-
-export async function parseDocx(file: File): Promise<ParseResult> {
-  const [mammoth, TurndownService] = await Promise.all([
-    import("mammoth"),
-    import("turndown"),
-  ]);
-
-  const arrayBuffer = await file.arrayBuffer();
-  const { value: html } = await mammoth.convertToHtml({ arrayBuffer });
-
-  const td = new TurndownService.default({ headingStyle: "atx", bulletListMarker: "-" });
-  const markdown = td.turndown(html);
-
-  // Return both: html for TipTap display, markdown for the LLM.
-  return { markdown, html, warnings: [] };
-}
-
-// ── PDF ──────────────────────────────────────────────────────────────────────
+const BULLET_RE = /^[●•·▪▸◦‣⁃]\s*/;
 
 interface RawItem {
   str: string;
@@ -64,39 +46,16 @@ function groupIntoLines(items: RawItem[]): RawItem[][] {
   return lines;
 }
 
-function medianHeight(items: RawItem[]): number {
-  const heights = items.map((i) => i.height).filter((h) => h > 2).sort((a, b) => a - b);
-  if (heights.length === 0) return 12;
-  return heights[Math.floor(heights.length / 2)];
-}
-
-function leftMargin(items: RawItem[]): number {
-  const xs = items.map((i) => i.x).sort((a, b) => a - b);
-  // 5th percentile to ignore header/footer outliers.
-  return xs[Math.floor(xs.length * 0.05)] ?? 0;
-}
-
-function linesToMarkdown(lines: RawItem[][], bodyHeight: number, margin: number): string {
+function linesToMarkdown(lines: RawItem[][]): string {
   const out: string[] = [];
 
   for (const line of lines) {
     const text = line.map((i) => i.str).join("").trim();
     if (!text) continue;
 
-    const maxH = Math.max(...line.map((i) => i.height));
-    const minX = Math.min(...line.map((i) => i.x));
-
-    const isHeading =
-      maxH > bodyHeight * 1.3 ||
-      (text === text.toUpperCase() && text.replace(/\s/g, "").length > 2);
-    const isIndented = minX > margin + 15;
-
-    if (isHeading) {
-      if (out.length > 0 && out[out.length - 1] !== "") out.push("");
-      out.push(`## ${text}`);
-      out.push("");
-    } else if (isIndented) {
-      out.push(`- ${text}`);
+    if (BULLET_RE.test(text)) {
+      if (out.length > 0) out.push("");
+      out.push(text);
     } else {
       out.push(text);
     }
@@ -104,6 +63,26 @@ function linesToMarkdown(lines: RawItem[][], bodyHeight: number, margin: number)
 
   return out.join("\n").trim();
 }
+
+// ── DOCX ─────────────────────────────────────────────────────────────────────
+
+export async function parseDocx(file: File): Promise<ParseResult> {
+  const [mammoth, TurndownService] = await Promise.all([
+    import("mammoth"),
+    import("turndown"),
+  ]);
+
+  const arrayBuffer = await file.arrayBuffer();
+  const { value: html } = await mammoth.convertToHtml({ arrayBuffer });
+
+  const td = new TurndownService.default({ headingStyle: "atx", bulletListMarker: "-" });
+  const markdown = td.turndown(html);
+
+  // Return both: html for TipTap display, markdown for the LLM.
+  return { markdown, html, warnings: [] };
+}
+
+// ── PDF ──────────────────────────────────────────────────────────────────────
 
 export async function parsePdf(file: File): Promise<ParseResult> {
   const pdfjs = await import("pdfjs-dist");
@@ -140,10 +119,8 @@ export async function parsePdf(file: File): Promise<ParseResult> {
     return { markdown: "", warnings: ["pdf-no-text-detected"] };
   }
 
-  const body = medianHeight(allItems);
-  const margin = leftMargin(allItems);
   const lines = groupIntoLines(allItems);
-  const markdown = linesToMarkdown(lines, body, margin);
+  const markdown = linesToMarkdown(lines);
 
   return { markdown, warnings: ["pdf-may-lose-formatting"] };
 }
