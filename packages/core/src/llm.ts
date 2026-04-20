@@ -140,7 +140,7 @@ export async function runGapAnalysis(
     messages: [
       {
         role: "system",
-        content: getSystemPrompt("gap_analysis", validated.provider.type, systemPromptOverride),
+        content: getSystemPrompt("gap_analysis", systemPromptOverride),
       },
       {
         role: "user",
@@ -168,7 +168,7 @@ export async function optimizeResume(
     messages: [
       {
         role: "system",
-        content: getSystemPrompt("optimize", validated.provider.type, systemPromptOverride),
+        content: getSystemPrompt("optimize", systemPromptOverride),
       },
       {
         role: "user",
