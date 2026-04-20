@@ -150,7 +150,6 @@ export async function runGapAnalysis(
     ...(supportsJsonResponseFormat(validated.provider.type)
       ? { response_format: { type: "json_object" as const } }
       : {}),
-    temperature: 0.2,
   });
 
   const raw = response.choices[0]?.message?.content ?? "";
@@ -179,7 +178,6 @@ export async function optimizeResume(
     ...(supportsJsonResponseFormat(validated.provider.type)
       ? { response_format: { type: "json_object" as const } }
       : {}),
-    temperature: 0.3,
   });
 
   const raw = response.choices[0]?.message?.content ?? "";

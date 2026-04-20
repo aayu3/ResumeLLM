@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import type { ProviderType } from "@resume-llm/core";
+import { DEFAULT_BASE_URLS, type ProviderType } from "@resume-llm/core";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
+const LOCAL_PROVIDERS = new Set<ProviderType>(["ollama", "lmstudio"]);
 
 // Session-level cache — keyed by "providerType|baseURL|apiKey".
 // Survives re-renders and dropdown changes; cleared on page reload.
@@ -32,9 +34,6 @@ export function useModels(
     const controller = new AbortController();
     setLoading(true);
 
-    const params = new URLSearchParams({ provider: providerType });
-    if (baseURL) params.set("baseURL", baseURL);
-
     const headers: Record<string, string> = {};
     if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
 
@@ -42,10 +41,18 @@ export function useModels(
       ? AbortSignal.any([controller.signal, AbortSignal.timeout(6000)])
       : controller.signal;
 
-    fetch(`${API_BASE}/api/models?${params}`, { headers, signal })
+    const fetchUrl = LOCAL_PROVIDERS.has(providerType)
+      ? `${(baseURL ?? DEFAULT_BASE_URLS[providerType as keyof typeof DEFAULT_BASE_URLS] ?? "").replace(/\/$/, "")}/models`
+      : `${API_BASE}/api/models?${new URLSearchParams({ provider: providerType, ...(baseURL ? { baseURL } : {}) })}`;
+
+    fetch(fetchUrl, { headers: LOCAL_PROVIDERS.has(providerType) ? {} : headers, signal })
       .then((r) => r.json())
       .then((json) => {
-        const ids: string[] = (json?.models as string[] | undefined) ?? [];
+        // Our API returns { models: string[] }; direct provider calls return { data: { id }[] }.
+        const ids: string[] =
+          Array.isArray(json?.models) ? json.models :
+          Array.isArray(json?.data) ? (json.data as { id: string }[]).map((m) => m.id).filter(Boolean) :
+          [];
         cache.set(key, ids);
         setModels(ids);
       })

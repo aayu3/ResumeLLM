@@ -1,7 +1,11 @@
-import type {
-  GapAnalysisResult,
-  OptimizeResult,
-  ProviderMeta,
+import OpenAI from "openai";
+import {
+  runGapAnalysis,
+  optimizeResume as coreOptimizeResume,
+  DEFAULT_BASE_URLS,
+  type GapAnalysisResult,
+  type OptimizeResult,
+  type ProviderMeta,
 } from "@resume-llm/core";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -10,6 +14,20 @@ export interface ApiPayload {
   resumeMarkdown: string;
   jobDescription: string;
   provider: ProviderMeta;
+}
+
+const LOCAL_PROVIDERS = new Set(["ollama", "lmstudio"]);
+
+function isLocal(provider: ProviderMeta): boolean {
+  return LOCAL_PROVIDERS.has(provider.type);
+}
+
+function buildLocalClient(provider: ProviderMeta): OpenAI {
+  return new OpenAI({
+    apiKey: "no-key",
+    baseURL: provider.baseURL ?? DEFAULT_BASE_URLS[provider.type as keyof typeof DEFAULT_BASE_URLS],
+    dangerouslyAllowBrowser: true,
+  });
 }
 
 async function post<T>(path: string, payload: ApiPayload, apiKey?: string): Promise<T> {
@@ -30,8 +48,22 @@ async function post<T>(path: string, payload: ApiPayload, apiKey?: string): Prom
   return res.json() as Promise<T>;
 }
 
-export const analyzeGap = (payload: ApiPayload, apiKey?: string) =>
-  post<GapAnalysisResult>("/api/gap-analysis", payload, apiKey);
+export async function analyzeGap(payload: ApiPayload, apiKey?: string): Promise<GapAnalysisResult> {
+  if (isLocal(payload.provider)) {
+    return runGapAnalysis(
+      { resumeMarkdown: payload.resumeMarkdown, jobDescription: payload.jobDescription, provider: payload.provider },
+      buildLocalClient(payload.provider)
+    );
+  }
+  return post<GapAnalysisResult>("/api/gap-analysis", payload, apiKey);
+}
 
-export const optimizeResume = (payload: ApiPayload, apiKey?: string) =>
-  post<OptimizeResult>("/api/optimize", payload, apiKey);
+export async function optimizeResume(payload: ApiPayload, apiKey?: string): Promise<OptimizeResult> {
+  if (isLocal(payload.provider)) {
+    return coreOptimizeResume(
+      { resumeMarkdown: payload.resumeMarkdown, jobDescription: payload.jobDescription, provider: payload.provider },
+      buildLocalClient(payload.provider)
+    );
+  }
+  return post<OptimizeResult>("/api/optimize", payload, apiKey);
+}
