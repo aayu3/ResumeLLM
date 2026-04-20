@@ -208,6 +208,159 @@ Observed in practice: Gemma 4 (via LM Studio) returned `suggestions` as an array
 
 ---
 
+## Deploying to Azure
+
+The app deploys as two Azure resources: a **Static Web App** (frontend) and a **Container App** (API).
+
+### Prerequisites
+
+```bash
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+az login
+```
+
+Register required resource providers (one-time per subscription):
+
+```bash
+az provider register --namespace Microsoft.ContainerRegistry
+az provider register --namespace Microsoft.App
+az provider register --namespace Microsoft.OperationalInsights
+az provider register --namespace Microsoft.Web
+az provider register --namespace Microsoft.Storage
+```
+
+Wait until each is `"Registered"`:
+```bash
+az provider show --namespace Microsoft.ContainerRegistry --query "registrationState"
+```
+
+### 1. Create a resource group
+
+```bash
+az group create --name resumellm-rg --location eastus
+```
+
+### 2. Create a Container Registry
+
+```bash
+az acr create \
+  --name resumellmacr \
+  --resource-group resumellm-rg \
+  --sku Basic \
+  --admin-enabled true
+```
+
+### 3. Build & push the API image
+
+Run from the **repo root** — the Dockerfile needs the full monorepo as context.
+
+```bash
+az acr login --name resumellmacr
+
+docker build -f apps/api/Dockerfile \
+  -t resumellmacr.azurecr.io/api:latest .
+
+docker push resumellmacr.azurecr.io/api:latest
+```
+
+### 4. Create the Container Apps environment
+
+```bash
+az containerapp env create \
+  --name resumellm-env \
+  --resource-group resumellm-rg \
+  --location eastus
+```
+
+### 5. Deploy the API
+
+```bash
+az containerapp create \
+  --name resumellm-api \
+  --resource-group resumellm-rg \
+  --environment resumellm-env \
+  --image resumellmacr.azurecr.io/api:latest \
+  --registry-server resumellmacr.azurecr.io \
+  --target-port 8787 \
+  --ingress external \
+  --min-replicas 0 \
+  --max-replicas 3 \
+  --cpu 0.5 \
+  --memory 1.0Gi
+```
+
+Get the API URL:
+```bash
+az containerapp show \
+  --name resumellm-api \
+  --resource-group resumellm-rg \
+  --query "properties.configuration.ingress.fqdn" -o tsv
+```
+
+Verify it's running:
+```bash
+curl https://<api-url>/health
+# → {"status":"ok"}
+```
+
+### 6. Configure the frontend environment
+
+Copy `.env.example` to `.env` in `apps/web` and fill in the API URL from the previous step:
+
+```bash
+cp apps/web/.env.example apps/web/.env
+# Edit VITE_API_URL=https://<api-url>
+```
+
+### 7. Deploy the frontend
+
+```bash
+az staticwebapp create \
+  --name resumellm-web \
+  --resource-group resumellm-rg \
+  --location westus2 \
+  --sku Free \
+  --source https://github.com/<your-username>/ResumeLLM \
+  --branch main \
+  --app-location apps/web \
+  --output-location dist \
+  --login-with-github
+```
+
+> **WSL note:** The GitHub auth flow may not open a browser automatically. Watch the terminal for a device code URL and enter it manually.
+
+Set the API URL as a build-time environment variable:
+
+```bash
+az staticwebapp appsettings set \
+  --name resumellm-web \
+  --resource-group resumellm-rg \
+  --setting-names VITE_API_URL=https://<api-url>
+```
+
+Azure commits a GitHub Actions workflow to your repo. Once merged, every push to `main` redeploys the frontend automatically.
+
+### Redeploying the API after changes
+
+```bash
+docker build -f apps/api/Dockerfile -t resumellmacr.azurecr.io/api:latest .
+docker push resumellmacr.azurecr.io/api:latest
+az containerapp update \
+  --name resumellm-api \
+  --resource-group resumellm-rg \
+  --image resumellmacr.azurecr.io/api:latest
+```
+
+### Estimated cost
+
+| Resource | Cost |
+|---|---|
+| Static Web App (Free tier) | $0/mo |
+| Container Registry (Basic) | ~$5/mo |
+| Container App (scales to zero) | ~$0–2/mo at low traffic |
+
+---
+
 ## Repo Scripts
 
 | Command | What it does |
