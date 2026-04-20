@@ -1,16 +1,34 @@
 import { useState, useEffect } from "react";
 import { DEFAULT_BASE_URLS, type ProviderType } from "@resume-llm/core";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
-
-const LOCAL_PROVIDERS = new Set<ProviderType>(["ollama", "lmstudio"]);
-
 // Session-level cache — keyed by "providerType|baseURL|apiKey".
-// Survives re-renders and dropdown changes; cleared on page reload.
 const cache = new Map<string, string[]>();
 
 function cacheKey(providerType: ProviderType, baseURL: string | undefined, apiKey: string) {
   return `${providerType}|${baseURL ?? ""}|${apiKey}`;
+}
+
+function buildModelsUrl(providerType: ProviderType, baseURL: string | undefined): string {
+  if (providerType === "anthropic") {
+    const base = baseURL ?? "https://api.anthropic.com/v1";
+    return `${base.replace(/\/$/, "")}/models`;
+  }
+  if (providerType === "openai") {
+    return "https://api.openai.com/v1/models";
+  }
+  // ollama, lmstudio, custom — call their /models endpoint directly
+  const base = baseURL ?? DEFAULT_BASE_URLS[providerType as keyof typeof DEFAULT_BASE_URLS] ?? "";
+  return `${base.replace(/\/$/, "")}/models`;
+}
+
+function buildModelsHeaders(providerType: ProviderType, apiKey: string): Record<string, string> {
+  if (providerType === "anthropic") {
+    return { "x-api-key": apiKey, "anthropic-version": "2023-06-01" };
+  }
+  if (providerType === "openai" || providerType === "custom") {
+    return { "Authorization": `Bearer ${apiKey}` };
+  }
+  return {};
 }
 
 export function useModels(
@@ -24,7 +42,6 @@ export function useModels(
   const [loading, setLoading] = useState(() => !cache.has(key));
 
   useEffect(() => {
-    // Serve from cache immediately — no fetch needed.
     if (cache.has(key)) {
       setModels(cache.get(key)!);
       setLoading(false);
@@ -34,21 +51,17 @@ export function useModels(
     const controller = new AbortController();
     setLoading(true);
 
-    const headers: Record<string, string> = {};
-    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-
     const signal = AbortSignal.any
       ? AbortSignal.any([controller.signal, AbortSignal.timeout(6000)])
       : controller.signal;
 
-    const fetchUrl = LOCAL_PROVIDERS.has(providerType)
-      ? `${(baseURL ?? DEFAULT_BASE_URLS[providerType as keyof typeof DEFAULT_BASE_URLS] ?? "").replace(/\/$/, "")}/models`
-      : `${API_BASE}/api/models?${new URLSearchParams({ provider: providerType, ...(baseURL ? { baseURL } : {}) })}`;
-
-    fetch(fetchUrl, { headers: LOCAL_PROVIDERS.has(providerType) ? {} : headers, signal })
+    fetch(buildModelsUrl(providerType, baseURL), {
+      headers: buildModelsHeaders(providerType, apiKey),
+      signal,
+    })
       .then((r) => r.json())
       .then((json) => {
-        // Our API returns { models: string[] }; direct provider calls return { data: { id }[] }.
+        // Anthropic + OpenAI return { data: [{ id }] }; local providers return { data: [{ id }] } or { models: string[] }
         const ids: string[] =
           Array.isArray(json?.models) ? json.models :
           Array.isArray(json?.data) ? (json.data as { id: string }[]).map((m) => m.id).filter(Boolean) :
@@ -57,7 +70,6 @@ export function useModels(
         setModels(ids);
       })
       .catch(() => {
-        // Don't cache failures — allow retry on next mount.
         setModels([]);
       })
       .finally(() => setLoading(false));

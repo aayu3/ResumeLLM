@@ -98,7 +98,7 @@ Schema:
     "missingSkills": string[],
     "toneIssues": string[],
     "strengthsFound": string[],
-    "overallMatchScore": number
+    "overallMatchScore": number // 0-100 integer representing keyword + skills alignment
   }
 }`,
 
@@ -129,7 +129,7 @@ Schema:
     "missingSkills": string[],
     "toneIssues": string[],
     "strengthsFound": string[],
-    "overallMatchScore": number
+    "overallMatchScore": number // 0-100 integer representing keyword + skills alignment
   }
 }`,
 
@@ -160,7 +160,7 @@ Schema:
     "missingSkills": string[],
     "toneIssues": string[],
     "strengthsFound": string[],
-    "overallMatchScore": number
+    "overallMatchScore": number // 0-100 integer representing keyword + skills alignment
   }
 }`,
 
@@ -191,7 +191,7 @@ Schema:
     "missingSkills": string[],
     "toneIssues": string[],
     "strengthsFound": string[],
-    "overallMatchScore": number
+    "overallMatchScore": number // 0-100 integer representing keyword + skills alignment
   }
 }`,
 

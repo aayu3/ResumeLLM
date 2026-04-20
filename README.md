@@ -1,27 +1,43 @@
 # ResumeLLM
 
-An AI-powered resume optimization tool with a React web UI and an MCP server for agentic workflows. Users bring their own API keys or run fully local inference — no keys are ever stored on the server.
+An AI-powered resume optimization tool with a React web UI and an MCP server for agentic workflows. Users bring their own API keys or run fully local inference — no keys ever leave the browser.
 
 ---
 
 ## Architecture Overview
 
 ```
-packages/core        ← The source of truth. Zod schemas, system prompts, LLM orchestration.
-apps/api             ← Hono server. REST backend for the web UI + MCP server for agents.  [NOT YET BUILT]
-apps/web             ← React frontend with resume editor.                                  [NOT YET BUILT]
-scripts/             ← Dev utilities (smoke-test, etc.)
+packages/core   ← Zod schemas, system prompts, LLM orchestration. Bundled into the frontend at build time.
+apps/web        ← React SPA. Calls LLM providers directly from the browser — no backend required.
+apps/api        ← Hono server + MCP server. For local agentic workflows only, not needed for the web app.
+scripts/        ← Dev utilities (smoke-test, etc.)
 ```
 
-### The Stateless Relay Pattern (Security Model)
+### How it works
 
-`packages/core` functions **never receive API keys**. Instead:
+`packages/core` contains the prompts, schemas, and LLM logic as plain TypeScript. Vite bundles it directly into the frontend JavaScript at build time — there is no server involved at runtime for the web app.
 
-- **Web flow**: The UI sends the key in the `Authorization` header. The API layer extracts it, constructs an OpenAI-compatible client, and passes that client into core functions.
-- **Agent flow**: The MCP server reads the key from environment variables set in `claude_desktop_config.json`.
-- **Local flow**: Ollama and LM Studio require no keys at all — the client is constructed with a dummy key and a `baseURL` pointing at localhost.
+When a user submits a resume, the browser:
+1. Builds the prompt using `packages/core`
+2. Constructs an OpenAI-compatible client pointed at the user's chosen provider
+3. Calls the provider API directly (OpenAI, Anthropic, Ollama, LM Studio, or any custom endpoint)
+4. Parses and renders the response locally
 
-This means if a request body or log is ever exposed, no secrets leak.
+**API keys never touch a server.** They exist only in the browser and travel directly to the provider. The deployed app is 100% static files on a CDN.
+
+### Provider support
+
+| Provider | Key required | How it's called |
+|---|---|---|
+| OpenAI | Yes (user-supplied) | Direct from browser via OpenAI SDK |
+| Anthropic | Yes (user-supplied) | Direct from browser via OpenAI SDK + `x-api-key` header |
+| Ollama | No | Direct from browser to `localhost:11434` |
+| LM Studio | No | Direct from browser to `localhost:1234` |
+| Custom endpoint | Optional | Direct from browser to user-specified URL |
+
+### MCP server (`apps/api`)
+
+The API package exists for agentic use cases — running `gap_analysis` and `optimize_resume` as MCP tools inside Claude Code or Claude Desktop. It is run locally by the user, not deployed to the cloud. Keys are passed via environment variables in `claude_desktop_config.json`.
 
 ---
 
@@ -159,205 +175,66 @@ Barrel export — re-exports everything from the three files above.
 
 ---
 
-### Not Yet Built
+## Design Decisions
 
-#### `apps/api` — Hono API + MCP Server
-This is the next thing to build. Responsibilities:
+**Why is `packages/core` bundled into the frontend?**
+The prompts, schemas, and LLM orchestration are plain TypeScript with no server-side dependencies. Vite bundles them into the frontend JS at build time. This means the deployed app is 100% static — no server, no runtime cost, no infrastructure to maintain.
 
-1. **Client construction** — extract the API key from the `Authorization: Bearer <key>` header (or env var for agent flow), read `ProviderMeta` from the request body, and build an `OpenAI` client:
-   ```ts
-   new OpenAI({
-     apiKey,
-     baseURL: meta.baseURL ?? DEFAULT_BASE_URLS[meta.type]
-   })
-   ```
-2. **REST routes** (for the web UI):
-   - `POST /api/gap-analysis` → calls `runGapAnalysis`
-   - `POST /api/optimize` → calls `optimizeResume`
-3. **MCP tools** (for Claude Code / agentic flows):
-   - `gap_analysis` tool
-   - `optimize_resume` tool
-4. **Transport**: SSE or Streamable HTTP. The plan targets Cloudflare Workers (Wrangler) for local dev, migrating to Azure Functions for production.
+**Why does `packages/core` take a pre-built `OpenAI` client?**
+Core functions never construct clients themselves, so they never touch API keys. The caller (browser or MCP server) is the only place a key is handled. This keeps the core testable and key-agnostic.
 
-#### `apps/web` — React Frontend
-Not started. Planned features:
-- Resume input (paste Markdown or upload)
-- Job description input
-- Provider/model selector UI (sends `ProviderMeta` + key per request — no server-side key storage)
-- Results view with Accept/Reject suggestions
-- Editor (Tiptap or similar — kept decoupled from core so it can be swapped)
-
----
-
-## Design Decisions Recorded Here
-
-**Why Option B for API keys (key-agnostic core)?**
-Core functions take a pre-built `OpenAI` client instead of raw credentials. This means keys never appear in request bodies, log lines, or error reports. The API/MCP layer is the only place that ever touches a secret.
-
-**Why `ProviderMeta` instead of a full provider config with keys?**
-`ProviderMeta` carries only `{ type, model, baseURL? }` — the non-secret metadata core needs. This is what travels in request bodies and what gets logged safely.
+**Why `ProviderMeta` instead of passing keys through?**
+`ProviderMeta` carries only `{ type, model, baseURL? }` — the non-secret metadata. Keys are passed separately and only as far as client construction. Nothing in `ProviderMeta` is sensitive.
 
 **Why bullet-level suggestions?**
 `Suggestion` maps each change to an `originalText` / `suggestedText` pair. The `originalText` string is enough to locate the bullet in the resume without needing character offsets, which keeps the schema simple and the editor integration flexible.
 
 **Why per-provider system prompts?**
-Local models need simpler, more literal instructions and concrete examples. Cloud models handle schema descriptions in prose. Keeping them separate (with `getSystemPrompt`) means you can tune each independently without affecting the function signatures callers depend on.
+Local models need simpler, more literal instructions and concrete examples. Cloud models handle schema descriptions in prose. Keeping them separate means you can tune each independently without affecting function signatures.
 
 **Why `normalizeOptimizePayload`?**
-Observed in practice: Gemma 4 (via LM Studio) returned `suggestions` as an array of human-readable strings despite being shown the schema. The normalization coerces these into valid objects so the call succeeds rather than throwing a Zod validation error. The improved local model prompts (with a concrete example object) are the primary fix; the coercion is a safety net.
+Observed in practice: Gemma 4 (via LM Studio) returned `suggestions` as an array of strings despite being shown the schema. The normalization coerces these into valid objects so the call succeeds rather than throwing a Zod validation error.
 
 ---
 
-## Deploying to Azure
+## Deploying to Cloudflare Pages
 
-The app deploys as two Azure resources: a **Static Web App** (frontend) and a **Container App** (API).
+The web app is fully static — no server required. Deploy it to Cloudflare Pages for free.
 
-### Prerequisites
+### 1. Push your code to GitHub
 
-```bash
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-az login
-```
+### 2. Create a Cloudflare Pages project
 
-Register required resource providers (one-time per subscription):
+- Go to [cloudflare.com](https://cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
+- Select your `ResumeLLM` repo
 
-```bash
-az provider register --namespace Microsoft.ContainerRegistry
-az provider register --namespace Microsoft.App
-az provider register --namespace Microsoft.OperationalInsights
-az provider register --namespace Microsoft.Web
-az provider register --namespace Microsoft.Storage
-```
+### 3. Set build settings
 
-Wait until each is `"Registered"`:
-```bash
-az provider show --namespace Microsoft.ContainerRegistry --query "registrationState"
-```
-
-### 1. Create a resource group
-
-```bash
-az group create --name resumellm-rg --location eastus
-```
-
-### 2. Create a Container Registry
-
-```bash
-az acr create \
-  --name resumellmacr \
-  --resource-group resumellm-rg \
-  --sku Basic \
-  --admin-enabled true
-```
-
-### 3. Build & push the API image
-
-Run from the **repo root** — the Dockerfile needs the full monorepo as context.
-
-```bash
-az acr login --name resumellmacr
-
-docker build -f apps/api/Dockerfile \
-  -t resumellmacr.azurecr.io/api:latest .
-
-docker push resumellmacr.azurecr.io/api:latest
-```
-
-### 4. Create the Container Apps environment
-
-```bash
-az containerapp env create \
-  --name resumellm-env \
-  --resource-group resumellm-rg \
-  --location eastus
-```
-
-### 5. Deploy the API
-
-```bash
-az containerapp create \
-  --name resumellm-api \
-  --resource-group resumellm-rg \
-  --environment resumellm-env \
-  --image resumellmacr.azurecr.io/api:latest \
-  --registry-server resumellmacr.azurecr.io \
-  --target-port 8787 \
-  --ingress external \
-  --min-replicas 0 \
-  --max-replicas 3 \
-  --cpu 0.5 \
-  --memory 1.0Gi
-```
-
-Get the API URL:
-```bash
-az containerapp show \
-  --name resumellm-api \
-  --resource-group resumellm-rg \
-  --query "properties.configuration.ingress.fqdn" -o tsv
-```
-
-Verify it's running:
-```bash
-curl https://<api-url>/health
-# → {"status":"ok"}
-```
-
-### 6. Configure the frontend environment
-
-Copy `.env.example` to `.env` in `apps/web` and fill in the API URL from the previous step:
-
-```bash
-cp apps/web/.env.example apps/web/.env
-# Edit VITE_API_URL=https://<api-url>
-```
-
-### 7. Deploy the frontend
-
-```bash
-az staticwebapp create \
-  --name resumellm-web \
-  --resource-group resumellm-rg \
-  --location westus2 \
-  --sku Free \
-  --source https://github.com/<your-username>/ResumeLLM \
-  --branch main \
-  --app-location apps/web \
-  --output-location dist \
-  --login-with-github
-```
-
-> **WSL note:** The GitHub auth flow may not open a browser automatically. Watch the terminal for a device code URL and enter it manually.
-
-Set the API URL as a build-time environment variable:
-
-```bash
-az staticwebapp appsettings set \
-  --name resumellm-web \
-  --resource-group resumellm-rg \
-  --setting-names VITE_API_URL=https://<api-url>
-```
-
-Azure commits a GitHub Actions workflow to your repo. Once merged, every push to `main` redeploys the frontend automatically.
-
-### Redeploying the API after changes
-
-```bash
-docker build -f apps/api/Dockerfile -t resumellmacr.azurecr.io/api:latest .
-docker push resumellmacr.azurecr.io/api:latest
-az containerapp update \
-  --name resumellm-api \
-  --resource-group resumellm-rg \
-  --image resumellmacr.azurecr.io/api:latest
-```
-
-### Estimated cost
-
-| Resource | Cost |
+| Setting | Value |
 |---|---|
-| Static Web App (Free tier) | $0/mo |
-| Container Registry (Basic) | ~$5/mo |
-| Container App (scales to zero) | ~$0–2/mo at low traffic |
+| Framework preset | None |
+| Build command | `pnpm --filter=@resume-llm/core build && pnpm --filter=@resume-llm/web build` |
+| Build output directory | `apps/web/dist` |
+
+No environment variables are needed — all provider calls go directly from the browser.
+
+### 4. Deploy
+
+Click **Save and Deploy**. Every push to `main` redeploys automatically.
+
+**Cost: $0** — Cloudflare Pages free tier has unlimited bandwidth and no build minute limits for public repos.
+
+---
+
+## Running the MCP Server locally
+
+The `apps/api` package exposes `gap_analysis` and `optimize_resume` as MCP tools for use in Claude Code or Claude Desktop. It is not deployed — run it locally.
+
+```bash
+pnpm dev
+```
+
+Configure your MCP client to point at `http://localhost:8787/mcp` and set your API key in the environment.
 
 ---
 

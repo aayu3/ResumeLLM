@@ -8,62 +8,42 @@ import {
   type ProviderMeta,
 } from "@resume-llm/core";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
-
 export interface ApiPayload {
   resumeMarkdown: string;
   jobDescription: string;
   provider: ProviderMeta;
 }
 
-const LOCAL_PROVIDERS = new Set(["ollama", "lmstudio"]);
+function buildClient(provider: ProviderMeta, apiKey: string): OpenAI {
+  if (provider.type === "anthropic") {
+    return new OpenAI({
+      apiKey: "no-key",
+      baseURL: provider.baseURL ?? "https://api.anthropic.com/v1",
+      defaultHeaders: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      dangerouslyAllowBrowser: true,
+    });
+  }
 
-function isLocal(provider: ProviderMeta): boolean {
-  return LOCAL_PROVIDERS.has(provider.type);
-}
-
-function buildLocalClient(provider: ProviderMeta): OpenAI {
   return new OpenAI({
-    apiKey: "no-key",
+    apiKey: provider.type === "ollama" || provider.type === "lmstudio" ? "no-key" : apiKey,
     baseURL: provider.baseURL ?? DEFAULT_BASE_URLS[provider.type as keyof typeof DEFAULT_BASE_URLS],
     dangerouslyAllowBrowser: true,
   });
 }
 
-async function post<T>(path: string, payload: ApiPayload, apiKey?: string): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? "Request failed");
-  }
-
-  return res.json() as Promise<T>;
-}
-
 export async function analyzeGap(payload: ApiPayload, apiKey?: string): Promise<GapAnalysisResult> {
-  if (isLocal(payload.provider)) {
-    return runGapAnalysis(
-      { resumeMarkdown: payload.resumeMarkdown, jobDescription: payload.jobDescription, provider: payload.provider },
-      buildLocalClient(payload.provider)
-    );
-  }
-  return post<GapAnalysisResult>("/api/gap-analysis", payload, apiKey);
+  return runGapAnalysis(
+    { resumeMarkdown: payload.resumeMarkdown, jobDescription: payload.jobDescription, provider: payload.provider },
+    buildClient(payload.provider, apiKey ?? "no-key")
+  );
 }
 
 export async function optimizeResume(payload: ApiPayload, apiKey?: string): Promise<OptimizeResult> {
-  if (isLocal(payload.provider)) {
-    return coreOptimizeResume(
-      { resumeMarkdown: payload.resumeMarkdown, jobDescription: payload.jobDescription, provider: payload.provider },
-      buildLocalClient(payload.provider)
-    );
-  }
-  return post<OptimizeResult>("/api/optimize", payload, apiKey);
+  return coreOptimizeResume(
+    { resumeMarkdown: payload.resumeMarkdown, jobDescription: payload.jobDescription, provider: payload.provider },
+    buildClient(payload.provider, apiKey ?? "no-key")
+  );
 }
