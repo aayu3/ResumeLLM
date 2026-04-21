@@ -2,11 +2,13 @@ import OpenAI from "openai";
 import {
   runGapAnalysis,
   optimizeResume as coreOptimizeResume,
+} from "./llm.ts";
+import {
   DEFAULT_BASE_URLS,
   type GapAnalysisResult,
   type OptimizeResult,
   type ProviderMeta,
-} from "@resume-llm/core";
+} from "./schemas.ts";
 
 export interface ApiPayload {
   resumeMarkdown: string;

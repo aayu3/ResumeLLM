@@ -1,8 +1,4 @@
-// ── Task types ────────────────────────────────────────────────────────────────
-
 export type PromptTask = "gap_analysis" | "optimize" | "optimize_pdf";
-
-// ── System prompts ────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPTS: Record<PromptTask, string> = {
   gap_analysis: `\
@@ -83,28 +79,14 @@ Schema:
 }`,
 };
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/**
- * Returns the system prompt for a given task.
- * Pass `override` to replace the default entirely (e.g. for A/B testing).
- */
 export function getSystemPrompt(task: PromptTask, override?: string): string {
   return override ?? SYSTEM_PROMPTS[task];
 }
 
-// ── User-turn prompt builders ─────────────────────────────────────────────────
-
-export function buildGapAnalysisPrompt(
-  resumeMarkdown: string,
-  jobDescription: string
-): string {
+export function buildGapAnalysisPrompt(resumeMarkdown: string, jobDescription: string): string {
   return `## Resume\n${resumeMarkdown}\n\n## Job Description\n${jobDescription}\n\nPerform a gap analysis and return the JSON object.`;
 }
 
-export function buildOptimizePrompt(
-  resumeMarkdown: string,
-  jobDescription: string
-): string {
+export function buildOptimizePrompt(resumeMarkdown: string, jobDescription: string): string {
   return `## Resume\n${resumeMarkdown}\n\n## Job Description\n${jobDescription}\n\nRewrite the resume and return the JSON object.`;
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { DEFAULT_BASE_URLS, type ProviderType } from "@resume-llm/core";
+import { DEFAULT_BASE_URLS, type ProviderType } from "../lib/schemas.ts";
 
 // Session-level cache — keyed by "providerType|baseURL|apiKey".
 const cache = new Map<string, string[]>();

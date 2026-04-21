@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { OptimizeResult } from "@resume-llm/core";
+import type { OptimizeResult } from "../lib/schemas.ts";
 import { GapAnalysisCard } from "./GapAnalysisCard.tsx";
 import { ReviewOverlay } from "./review/ReviewOverlay.tsx";
 

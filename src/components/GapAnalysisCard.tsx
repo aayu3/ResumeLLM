@@ -1,4 +1,4 @@
-import type { GapAnalysisResult } from "@resume-llm/core";
+import type { GapAnalysisResult } from "../lib/schemas.ts";
 
 interface GapAnalysisCardProps {
   result: GapAnalysisResult;
