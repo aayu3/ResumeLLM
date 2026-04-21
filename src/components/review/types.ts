@@ -1,4 +1,4 @@
-import type { Suggestion } from "@resume-llm/core";
+import type { Suggestion } from "../../lib/schemas.ts";
 
 export type SuggestionStatus = "pending" | "accepted" | "rejected";
 

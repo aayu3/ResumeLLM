@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { DEFAULT_MODELS, DEFAULT_BASE_URLS } from "@resume-llm/core";
-import type { ProviderMeta, ProviderType } from "@resume-llm/core";
+import { DEFAULT_MODELS, DEFAULT_BASE_URLS } from "../lib/schemas.ts";
+import type { ProviderMeta, ProviderType } from "../lib/schemas.ts";
 import { useModels } from "../hooks/useModels.ts";
 
 function ApiKeyInput({ value, onChange, disabled }: {

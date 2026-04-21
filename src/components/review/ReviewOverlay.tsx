@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import type { OptimizeResult } from "@resume-llm/core";
+import type { OptimizeResult } from "../../lib/schemas.ts";
 import { buildSegments } from "./buildSegments.ts";
 import { segmentsToMarkdown } from "./types.ts";
 import type { Segment, SuggestionSegment } from "./types.ts";

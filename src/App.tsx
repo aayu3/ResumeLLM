@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDarkMode } from "./hooks/useDarkMode.ts";
-import type { GapAnalysisResult, OptimizeResult, ProviderMeta } from "@resume-llm/core";
-import { DEFAULT_MODELS, DEFAULT_BASE_URLS } from "@resume-llm/core";
+import type { GapAnalysisResult, OptimizeResult, ProviderMeta } from "./lib/schemas.ts";
+import { DEFAULT_MODELS, DEFAULT_BASE_URLS } from "./lib/schemas.ts";
 import { analyzeGap, optimizeResume } from "./lib/api.ts";
 import { useLocalStorage } from "./hooks/useLocalStorage.ts";
 import { useEncryptedLocalStorage } from "./hooks/useEncryptedLocalStorage.ts";

@@ -1,4 +1,4 @@
-import type { Suggestion } from "@resume-llm/core";
+import type { Suggestion } from "../../lib/schemas.ts";
 import type { Segment, SuggestionSegment, TextSegment } from "./types.ts";
 
 // Markdown inline formatting characters to ignore when matching.
